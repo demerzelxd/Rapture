@@ -63,7 +63,7 @@ const city = 'Rapture';
 
 文章图片不建议放进 Git 仓库。推荐路径是：
 
-1. 安装 [PicList](https://piclist.cn/en/app)，并配置一个图床。
+1. 安装 [PicList](https://piclist.cn/en/app)，并配置一个图床或自定义上传器。
 2. 在 PicList 开启上传服务，例如 `http://127.0.0.1:36677/upload`。
 3. 在 Obsidian 安装 [Image Auto Upload Plugin](https://github.com/renmu123/obsidian-image-auto-upload-plugin) 或同类插件，把上传接口指向 PicList。
 4. 在 Obsidian 里粘贴或拖入图片，插件自动上传并把本地图片替换成远程 URL。
@@ -113,16 +113,28 @@ draft: true
 
 ## Gallery 照片操作流
 
-推荐的手工流：
+推荐流：
 
 1. 在 Obsidian 中建一个 `Rapture/Gallery` 文件夹。
 2. 先用 PicList 上传原图或压缩后的 WebP/JPEG。
 3. 复制 PicList 返回的远程 URL。
-4. 用上面的 Gallery 模板新建照片条目，填入 `src`、`width`、`height`、`location`、`tone` 和 `alt`。
+4. 用 `new:remote-photo` 生成 Gallery 草稿，自动填入 `src`、`width`、`height` 和文件名推导出的标题。
 5. 通过 FNS 同步到 `src/content/photos/`。
 6. 发布前运行 `npm run validate:content`；如果是远程图床，发布大量照片前再运行 `npm run validate:content:remote`。
 
-如果后续觉得手工填尺寸麻烦，可以做一个小脚本或 PicList 上传后脚本：上传成功后自动生成 Gallery frontmatter 草稿，并把 `width`、`height`、远程 URL 和文件名写好。这个优化比把图片塞进 Git 仓库更值得做。
+命令示例：
+
+```bash
+npm run new:remote-photo -- -- --src "https://images.example.com/rapture/gallery/night-platform.webp" --location Shanghai --tone "brass light after rain"
+```
+
+也可以把 URL 作为第一个位置参数传入，方便接 PicList 上传后脚本：
+
+```bash
+npm run new:remote-photo -- -- "https://images.example.com/rapture/gallery/night-platform.webp" --location Shanghai --tone "brass light after rain"
+```
+
+这个命令会下载远程图片读取尺寸，创建 `src/content/photos/*.mdx` 草稿，并默认写入 `draft: true`。如果 PicList 的上传后脚本支持把上传结果 URL 传给 shell 命令，就把结果 URL 填到上面的 `--src` 或位置参数里。准备公开时，把生成文件里的 `draft` 改成 `false`。
 
 ## 免费图床建议
 
@@ -141,6 +153,37 @@ Gallery 摄影：Obsidian 条目 + PicList 上传 + ImageKit 或 Cloudflare R2 U
 Git 仓库：只保存 Markdown 和照片元数据
 ```
 
+## NAS 当图床
+
+可以把 NAS 当图床，但不要把它理解成“更简单的免费图床”。它本质上是自建公开图片源，需要你自己负责公网访问、HTTPS、缓存、安全、上行带宽和可用性。
+
+推荐架构：
+
+```text
+PicList
+  -> 通过 WebDAV / SFTP / 自定义上传器把图片传到 NAS
+  -> NAS 上的只读静态目录
+  -> https://img.your-domain.com/rapture/gallery/xxx.webp
+  -> Rapture 的 src/content/photos/*.mdx 只保存这个远程 URL
+```
+
+更稳的公网暴露方式：
+
+- [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)：适合家宽没有公网 IP、无法稳定端口转发，或不想把 NAS 端口直接暴露到公网的情况。让 Cloudflare 反向连到你家里的 NAS/反代服务，再用 `img.your-domain.com` 访问静态图片。
+- [Tailscale Funnel](https://tailscale.com/kb/1223/funnel)：适合已经在用 Tailscale，并且只是想低成本公开一个 HTTPS 服务。它更像轻量公网入口，长期公开图床前仍要评估带宽、访问限制和稳定性。
+- 传统 DDNS + 路由器端口转发 + NAS 反向代理：能做，但安全压力最大。至少要只开放 443、启用 HTTPS、关闭目录列表、只暴露图片静态目录、NAS 管理后台不要和图片域名共用入口。
+
+NAS 图床的硬性要求：
+
+- 必须是公开可访问的 HTTPS URL；Vercel 构建、浏览器和搜索引擎都要能访问。
+- URL 要稳定，不能是需要登录、带临时 token、内网 IP 或 Tailscale 私有地址。
+- 图片目录应该只读公开，上传账号和公开访问账号分离。
+- 最好在上传前把照片压成 WebP/JPEG，控制单张体积；NAS 不会自动帮你做 CDN 图片优化。
+- 如果家宽上行很小，Gallery 打开会慢；可以用 Cloudflare 缓存静态图片，但首访和缓存失效时仍要回源到 NAS。
+- 不要把 NAS 管理后台暴露在同一个公网入口下。
+
+我的建议：如果你已经有 NAS、域名和 Cloudflare，可以用 NAS 做 Gallery 原图源；否则先用 ImageKit 跑通工作流更省心。NAS 更适合“我愿意维护自己的图片源”，不是更省事。
+
 ## `/studio/` 是否还需要
 
 按现在的工作流，`/studio/` 已经不是主路径。它没有出现在公开导航里，也不会进入 sitemap，并且页面本身是 `noindex`。如果 Obsidian + FNS 工作流稳定，可以删除 `src/pages/studio.astro`，再清理 README 和部署文档中残留的 Studio 说明。
@@ -150,7 +193,7 @@ Git 仓库：只保存 Markdown 和照片元数据
 ## 后续优化空间
 
 - 为 Obsidian 建两个模板：文章模板和 Gallery 照片模板，默认 `draft: true`。
-- 加一个 `new:remote-photo` 脚本：输入远程 URL、本地原图路径或 PicList 输出，自动生成 `src/content/photos/*.md`。
+- 把 `new:remote-photo` 接到 PicList 上传后脚本，让上传后自动生成 `src/content/photos/*.mdx` 草稿。
 - 约定图床路径，例如 `rapture/posts/YYYY/` 和 `rapture/gallery/YYYY/`，避免几年后图片目录失控。
 - 在发布前对 Gallery 远程图片运行 `npm run validate:content:remote`，但不要放进默认 CI，避免外部图床短暂故障影响每次提交。
 - 如果未来要在页面里展示 EXIF、相机、镜头、胶片模拟等信息，需要扩展 `src/content.config.ts` 的 photos schema。

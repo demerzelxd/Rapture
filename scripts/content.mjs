@@ -17,6 +17,8 @@ try {
     createPost(args);
   } else if (command === 'photo') {
     createPhoto(args);
+  } else if (command === 'remote-photo') {
+    await createRemotePhoto(args);
   } else if (command === 'import-post') {
     importPost(args);
   } else if (command === 'import-posts') {
@@ -131,6 +133,47 @@ function createPhoto(options) {
   ensureDirectory(photosDir);
   writeFileSync(destination, content, 'utf8');
   report(destination, draft ? 'draft photo entry created' : 'published photo entry created');
+}
+
+async function createRemotePhoto(options) {
+  const src = required(options.src ?? options.url ?? options._[0], '--src, --url, or a positional URL is required');
+  validateRemoteImageUrl(src);
+
+  const sourceName = options.filename ?? options.fileName ?? options.name ?? titleFromUrl(src);
+  const title = options.title ?? titleFromName(sourceName);
+  const date = options.date ?? today();
+  const slug = uniqueSlug(photosDir, options.slug ?? title);
+  const destination = path.join(photosDir, `${slug}.mdx`);
+  const dimensions = await resolveRemoteDimensions(src, options.width, options.height);
+  const draft = options.publish ? false : options.draft !== false;
+  const body = options.note ?? 'A frame waiting for its pressure note.';
+
+  const existingSources = readExistingPhotoSources();
+  if (existingSources.has(src) && !options.force) {
+    throw new Error(`photo source already exists in src/content/photos/: ${src}`);
+  }
+
+  const content = [
+    '---',
+    line('title', title),
+    line('location', options.location ?? 'Unsorted'),
+    dateLine('date', date),
+    line('src', src),
+    line('width', dimensions.width),
+    line('height', dimensions.height),
+    line('tone', options.tone ?? 'uncatalogued light'),
+    line('alt', options.alt ?? `${title}.`),
+    line('draft', draft),
+    '---',
+    '',
+    body,
+    '',
+  ].join('\n');
+
+  ensureDirectory(photosDir);
+  writeFileSync(destination, content, 'utf8');
+  report(destination, draft ? 'draft remote photo entry created' : 'published remote photo entry created');
+  console.log(`remote dimensions: ${dimensions.width}x${dimensions.height}`);
 }
 
 function importPost(options) {
@@ -447,6 +490,20 @@ function titleFromFile(filePath) {
   return path.basename(filePath, path.extname(filePath)).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function titleFromName(value) {
+  return path.basename(String(value), path.extname(String(value))).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function titleFromUrl(value) {
+  try {
+    const url = new URL(value);
+    const fileName = decodeURIComponent(path.posix.basename(url.pathname));
+    return fileName || `remote-photo-${today()}`;
+  } catch {
+    return `remote-photo-${today()}`;
+  }
+}
+
 function cleanText(value) {
   if (typeof value !== 'string') return undefined;
   const text = value.trim();
@@ -502,14 +559,63 @@ function resolveDimensions(src, widthInput, heightInput) {
   throw new Error('--width and --height are required unless --src points to a local PNG or JPG under public/');
 }
 
+async function resolveRemoteDimensions(src, widthInput, heightInput) {
+  const width = number(widthInput);
+  const height = number(heightInput);
+
+  if (width && height) {
+    return { width, height };
+  }
+
+  const partialBuffer = await fetchRemoteImageBuffer(src, { range: 'bytes=0-1048575' });
+  const partialSize = readImageSizeFromBuffer(partialBuffer);
+  if (partialSize) {
+    return partialSize;
+  }
+
+  const fullBuffer = await fetchRemoteImageBuffer(src);
+  const fullSize = readImageSizeFromBuffer(fullBuffer);
+  if (fullSize) {
+    return fullSize;
+  }
+
+  throw new Error(`could not read remote image dimensions: ${src}`);
+}
+
+async function fetchRemoteImageBuffer(src, options = {}) {
+  const headers = options.range ? { Range: options.range } : undefined;
+  const response = await fetch(src, { headers });
+
+  if (!response.ok && response.status !== 206) {
+    throw new Error(`remote image returned ${response.status}: ${src}`);
+  }
+
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function validateRemoteImageUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`remote photo src must be a valid URL: ${value}`);
+  }
+
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error(`remote photo src must use http or https: ${value}`);
+  }
+}
+
 function localImagePath(src) {
   if (!src.startsWith('/')) return undefined;
   return path.join(publicDir, src);
 }
 
 function readImageSize(filePath) {
-  const buffer = readFileSync(filePath);
+  return readImageSizeFromBuffer(readFileSync(filePath));
+}
 
+function readImageSizeFromBuffer(buffer) {
   if (buffer.length > 24 && buffer.toString('ascii', 1, 4) === 'PNG') {
     return {
       width: buffer.readUInt32BE(16),
@@ -593,7 +699,7 @@ function readExistingPhotoSources() {
   ensureDirectory(photosDir);
   const sources = new Set();
   readdirSync(photosDir, { withFileTypes: true }).forEach((entry) => {
-    if (!entry.isFile() || !entry.name.endsWith('.mdx')) return;
+    if (!entry.isFile() || !/\.mdx?$/i.test(entry.name)) return;
     const text = readFileSync(path.join(photosDir, entry.name), 'utf8');
     const parsed = splitFrontmatter(text);
     if (parsed.data.src) sources.add(parsed.data.src);
@@ -605,7 +711,7 @@ function readExistingPostSourceKeys() {
   ensureDirectory(blogDir);
   const sources = new Map();
   readdirSync(blogDir, { withFileTypes: true }).forEach((entry) => {
-    if (!entry.isFile() || !entry.name.endsWith('.mdx')) return;
+    if (!entry.isFile() || !/\.mdx?$/i.test(entry.name)) return;
     const filePath = path.join(blogDir, entry.name);
     const text = readFileSync(filePath, 'utf8');
     const parsed = splitFrontmatter(text);
@@ -719,6 +825,7 @@ function printUsage() {
 Usage:
   npm run new:post -- -- --title "Title" --description "One sentence" --tags "note,frontend" [--publish]
   npm run new:photo -- -- --title "Photo" --src /photos/photo.jpg --location Shanghai --tone "quiet blue"
+  npm run new:remote-photo -- -- --src "https://example.com/photo.jpg" --location Shanghai --tone "quiet blue"
   npm run import:obsidian -- -- --from "C:/vault/note.md" --tags "note,essay" [--publish]
   npm run import:obsidian:folder -- -- --from "C:/vault/Rapture" --tags "note,essay" [--publish]
   npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue" [--publish]
@@ -729,6 +836,7 @@ Notes:
   - Batch Obsidian imports scan nested .md and .mdx files and skip previously imported source files unless --force is set.
   - Obsidian normalization fills missing blog frontmatter before validation and builds.
   - Local photo dimensions are inferred for PNG, JPG, JPEG, and WebP files under public/.
+  - Remote photo dimensions are fetched automatically when using remote-photo.
   - Batch photo import skips files whose public src already exists in src/content/photos/.
-  - Remote photo URLs need --width and --height.`);
+  - Remote photo URLs still need --width and --height when using new:photo instead of new:remote-photo.`);
 }

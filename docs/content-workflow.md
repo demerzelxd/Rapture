@@ -86,6 +86,18 @@ npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --locatio
 npm run new:photo -- -- --title "照片标题" --src "https://example.com/photo.jpg" --width 1400 --height 933 --location Shanghai --tone "quiet blue"
 ```
 
+如果远程 URL 来自 PicList、ImageKit、NAS 图床或其他公开图片源，推荐使用 `new:remote-photo` 自动读取尺寸并生成 Gallery 草稿：
+
+```bash
+npm run new:remote-photo -- -- --src "https://images.example.com/rapture/gallery/photo.webp" --location Shanghai --tone "quiet blue"
+```
+
+这个命令也接受位置参数 URL，方便接 PicList 上传后脚本：
+
+```bash
+npm run new:remote-photo -- -- "https://images.example.com/rapture/gallery/photo.webp" --location Shanghai --tone "quiet blue"
+```
+
 helper 创建的照片条目默认是草稿。只有加上 `--publish`，这张照片才会进入公开相册。
 
 批量导入本地图片时，先把图片放到 `public/photos/`，再执行：

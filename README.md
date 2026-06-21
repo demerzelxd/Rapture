@@ -9,6 +9,7 @@ Rapture 是一个基于 Astro 的静态个人主页，用来承载写作和摄�
 - 不依赖数据库或自建服务器
 - 适合部署到 Vercel 免费额度
 - 本地内容工具：创建博文、创建照片条目、导入 Obsidian、批量导入照片
+- 远程 Gallery 照片草稿生成：自动读取远程图片尺寸
 - Obsidian + fast-note-sync-service 内容工作台
 - Web App Manifest 和移动端主屏元数据
 - 写作与相册共用的 JSON Feed
@@ -107,6 +108,12 @@ npm run new:post -- -- --title "文章标题" --description "一句用于卡片�
 
 ```bash
 npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
+```
+
+从 PicList 或远程图片 URL 创建 Gallery 草稿，并自动读取尺寸：
+
+```bash
+npm run new:remote-photo -- -- --src "https://images.example.com/rapture/gallery/photo.webp" --location Shanghai --tone "quiet blue"
 ```
 
 导入一篇 Obsidian 笔记：

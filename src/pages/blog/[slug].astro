@@ -143,7 +143,6 @@ const postJsonLd = {
       .filter((chapter) => chapter.link instanceof HTMLAnchorElement && chapter.target instanceof HTMLElement);
 
     const isCompactChapterNav = () => window.matchMedia('(max-width: 920px)').matches;
-    const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const toPixelNumber = (value) => {
       const parsed = Number.parseFloat(value);
       return Number.isFinite(parsed) ? parsed : 0;
@@ -201,7 +200,16 @@ const postJsonLd = {
     let activeChapterHash = '';
     let activeUpdateFrame = 0;
 
-    const setActiveChapter = (hash) => {
+    const revealChapterLink = (link) => {
+      if (!link || !isCompactChapterNav()) return;
+      link.scrollIntoView({
+        block: 'nearest',
+        inline: 'center',
+        behavior: 'auto',
+      });
+    };
+
+    const setActiveChapter = (hash, options = {}) => {
       if (hash === activeChapterHash) return;
       activeChapterHash = hash;
       let activeLink = null;
@@ -215,12 +223,8 @@ const postJsonLd = {
         }
       });
 
-      if (activeLink && isCompactChapterNav()) {
-        activeLink.scrollIntoView({
-          block: 'nearest',
-          inline: 'center',
-          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-        });
+      if (options.reveal) {
+        revealChapterLink(activeLink);
       }
     };
 
@@ -270,7 +274,7 @@ const postJsonLd = {
     const scrollToChapter = (hash, mode = 'push') => {
       const target = getTargetFromHash(hash);
       if (!target) return;
-      setActiveChapter(hash);
+      setActiveChapter(hash, { reveal: true });
 
       if (mode === 'replace') {
         window.history.replaceState({}, '', hash);
@@ -512,6 +516,7 @@ const postJsonLd = {
         0 18px 70px rgba(0, 0, 0, 0.34),
         inset 0 1px 0 rgba(240, 196, 108, 0.08);
       backdrop-filter: blur(18px);
+      touch-action: pan-y;
     }
 
     .article-toc::before {
@@ -549,6 +554,8 @@ const postJsonLd = {
       padding: 2px 0 4px;
       scrollbar-width: none;
       scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
     }
 
     .article-toc nav::-webkit-scrollbar {

@@ -10,6 +10,7 @@
     "build": "npm run normalize:obsidian && node scripts/clean-build-output.mjs && astro check && astro build",
     "new:post": "node scripts/content.mjs post",
     "new:photo": "node scripts/content.mjs photo",
+    "new:remote-photo": "node scripts/content.mjs remote-photo",
     "import:obsidian": "node scripts/content.mjs import-post",
     "import:obsidian:folder": "node scripts/content.mjs import-posts",
     "import:photos": "node scripts/content.mjs import-photos",
