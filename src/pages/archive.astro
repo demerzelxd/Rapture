@@ -1,0 +1,386 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getReadingTime } from '../lib/readingTime';
+
+type CountMap = Map<string, number>;
+
+const posts = (await getCollection('blog'))
+  .filter((post) => !post.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const photos = (await getCollection('photos'))
+  .filter((photo) => !photo.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const postYears = groupByYear(posts);
+const photoYears = groupByYear(photos);
+const tagCounts = countValues(posts.flatMap((post) => post.data.tags));
+const locationCounts = countValues(photos.map((photo) => photo.data.location));
+const latestPost = posts[0]?.data.date;
+const latestPhoto = photos[0]?.data.date;
+
+function groupByYear<T extends { data: { date: Date } }>(items: T[]) {
+  return items.reduce((groups, item) => {
+    const year = String(item.data.date.getFullYear());
+    const group = groups.get(year) ?? [];
+    group.push(item);
+    groups.set(year, group);
+    return groups;
+  }, new Map<string, T[]>());
+}
+
+function countValues(values: string[]) {
+  return values.reduce((counts, value) => {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+}
+
+function sortedCounts(counts: CountMap) {
+  return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function encoded(value: string) {
+  return encodeURIComponent(value.toLowerCase());
+}
+---
+
+<BaseLayout title="Archive | Rapture" description="The index of Rapture writing and captured light.">
+  <main id="main-content" class="page-main archive-main" tabindex="-1">
+    <p class="page-kicker">Archive</p>
+    <h1 class="page-title">Pressure maps for returning.</h1>
+    <p class="page-subtitle">A quiet index for dispatches, frames, tags, places, and the years that keep their own pressure.</p>
+    <a class="archive-search-link" href="/search/">Search across the house</a>
+
+    <section class="archive-ledger" aria-label="Archive summary">
+      <div class="ledger-cell">
+        <span>Dispatches</span>
+        <strong>{posts.length}</strong>
+        <p>{latestPost ? latestPost.toLocaleDateString('en', { month: 'short', day: '2-digit', year: 'numeric' }) : 'No signal yet'}</p>
+      </div>
+      <div class="ledger-cell">
+        <span>Frames</span>
+        <strong>{photos.length}</strong>
+        <p>{latestPhoto ? latestPhoto.toLocaleDateString('en', { month: 'short', day: '2-digit', year: 'numeric' }) : 'No light yet'}</p>
+      </div>
+      <div class="ledger-cell">
+        <span>Tags</span>
+        <strong>{tagCounts.size}</strong>
+        <p>Writing pressure bands</p>
+      </div>
+      <div class="ledger-cell">
+        <span>Places</span>
+        <strong>{locationCounts.size}</strong>
+        <p>Gallery coordinates</p>
+      </div>
+    </section>
+
+    <section class="archive-grid">
+      <section class="archive-block card">
+        <div class="archive-block-header">
+          <p class="page-kicker">Writing years</p>
+          <a href="/blog/">Open all</a>
+        </div>
+        <div class="archive-year-list">
+          {[...postYears.entries()].map(([year, entries]) => (
+            <section class="archive-year" id={`writing-${year}`}>
+              <h2>{year}</h2>
+              <div class="archive-links">
+                {entries.map((post) => (
+                  <a href={`/blog/${post.id}/`}>
+                    <span>{post.data.date.toLocaleDateString('en', { month: 'short', day: '2-digit' })} / {getReadingTime(post.body ?? '')}</span>
+                    <strong>{post.data.title}</strong>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </section>
+
+      <section class="archive-block card">
+        <div class="archive-block-header">
+          <p class="page-kicker">Writing tags</p>
+          <a href="/blog/">Filter writing</a>
+        </div>
+        <div class="archive-chips">
+          {sortedCounts(tagCounts).map(([tag, count]) => (
+            <a href={`/blog/?tag=${encoded(tag)}`}>
+              <span>{tag}</span>
+              <b>{count}</b>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section class="archive-block card">
+        <div class="archive-block-header">
+          <p class="page-kicker">Gallery years</p>
+          <a href="/gallery/">Open wall</a>
+        </div>
+        <div class="archive-year-list">
+          {[...photoYears.entries()].map(([year, entries]) => (
+            <section class="archive-year" id={`gallery-${year}`}>
+              <h2>{year}</h2>
+              <div class="archive-links">
+                {entries.map((photo) => (
+                  <a href={`/gallery/${photo.id}/`}>
+                    <span>{photo.data.date.toLocaleDateString('en', { month: 'short', day: '2-digit' })} / {photo.data.location}</span>
+                    <strong>{photo.data.title}</strong>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </section>
+
+      <section class="archive-block card">
+        <div class="archive-block-header">
+          <p class="page-kicker">Places</p>
+          <a href="/gallery/">Filter gallery</a>
+        </div>
+        <div class="archive-chips">
+          {sortedCounts(locationCounts).map(([location, count]) => (
+            <a href={`/gallery/?location=${encoded(location)}`}>
+              <span>{location}</span>
+              <b>{count}</b>
+            </a>
+          ))}
+        </div>
+      </section>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .archive-main {
+    width: min(1240px, calc(100% - 36px));
+  }
+
+  .archive-ledger {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 50px;
+  }
+
+  .archive-search-link {
+    min-height: 44px;
+    width: fit-content;
+    display: inline-grid;
+    place-items: center;
+    margin-top: 28px;
+    border: 1px solid rgba(82, 217, 255, 0.18);
+    border-radius: 999px;
+    padding: 0 16px;
+    background:
+      radial-gradient(circle at 50% 120%, rgba(240, 196, 108, 0.16), transparent 62%),
+      rgba(5, 7, 10, 0.44);
+    color: rgba(232, 244, 247, 0.78);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint);
+    user-select: none;
+  }
+
+  .archive-search-link:hover,
+  .archive-search-link:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(240, 196, 108, 0.4);
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .ledger-cell {
+    border-top: 1px solid rgba(240, 196, 108, 0.28);
+    padding-top: 16px;
+  }
+
+  .ledger-cell span,
+  .archive-links span {
+    color: rgba(232, 244, 247, 0.5);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .ledger-cell strong {
+    display: block;
+    margin-top: 8px;
+    color: white;
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 6rem);
+    line-height: 0.9;
+  }
+
+  .ledger-cell p {
+    margin: 10px 0 0;
+    color: rgba(232, 244, 247, 0.58);
+  }
+
+  .archive-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    gap: 18px;
+    margin-top: 44px;
+  }
+
+  .archive-block {
+    padding: clamp(22px, 4vw, 34px);
+  }
+
+  .archive-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 24px;
+  }
+
+  .archive-block-header .page-kicker {
+    margin: 0;
+  }
+
+  .archive-block-header a {
+    color: var(--cyan);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color 200ms var(--ease-out-quint);
+  }
+
+  .archive-block-header a:hover,
+  .archive-block-header a:focus-visible {
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .archive-year-list {
+    display: grid;
+    gap: 28px;
+  }
+
+  .archive-year {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .archive-year h2 {
+    margin: 0;
+    color: var(--brass-soft);
+    font-family: var(--font-display);
+    font-size: 3rem;
+    line-height: 0.9;
+  }
+
+  .archive-links {
+    display: grid;
+    gap: 10px;
+  }
+
+  .archive-links a {
+    display: grid;
+    gap: 7px;
+    border-left: 1px solid rgba(232, 244, 247, 0.12);
+    padding: 2px 0 2px 16px;
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint);
+  }
+
+  .archive-links a:hover,
+  .archive-links a:focus-visible {
+    transform: translateX(4px);
+    border-color: rgba(240, 196, 108, 0.42);
+    outline: none;
+  }
+
+  .archive-links strong {
+    color: rgba(232, 244, 247, 0.86);
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    line-height: 1;
+  }
+
+  .archive-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .archive-chips a {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(232, 244, 247, 0.12);
+    border-radius: 999px;
+    padding: 0 12px 0 14px;
+    background: rgba(5, 7, 10, 0.4);
+    color: rgba(232, 244, 247, 0.72);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      background 220ms var(--ease-out-quint),
+      color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint);
+  }
+
+  .archive-chips a:hover,
+  .archive-chips a:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(240, 196, 108, 0.34);
+    background: rgba(7, 20, 28, 0.72);
+    color: white;
+    outline: none;
+  }
+
+  .archive-chips b {
+    min-width: 24px;
+    border-radius: 999px;
+    padding: 2px 7px;
+    background: rgba(240, 196, 108, 0.12);
+    color: var(--brass-soft);
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  @media (max-width: 860px) {
+    .archive-ledger,
+    .archive-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .archive-main {
+      width: min(100% - 28px, 1240px);
+    }
+
+    .archive-ledger {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .archive-year {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .archive-block-header {
+      align-items: flex-start;
+      display: grid;
+    }
+  }
+</style>

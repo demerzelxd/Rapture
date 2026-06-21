@@ -1,0 +1,261 @@
+<section class="rapture-hero" id="entry" aria-label="Rapture entry">
+  <canvas class="ink-canvas" data-aquainkgl-canvas aria-hidden="true"></canvas>
+  <script is:inline src="/aquainkgl/aquainkgl.js?v=2026-06-21-upstream-aquainkgl"></script>
+  <div class="hero-noise" aria-hidden="true"></div>
+  <p class="hero-kicker">A private city beneath the surface</p>
+  <div class="hero-content">
+    <div class="hero-blend">
+      <h1>Rapture</h1>
+      <p class="hero-quote">
+        I chose the impossible.<br />
+        I chose... Rapture.
+      </p>
+    </div>
+  </div>
+  <div class="hero-actions" aria-label="Content entrances">
+    <a href="/blog/">Writing</a>
+    <a href="/gallery/">Gallery</a>
+  </div>
+  <a class="scroll-cue" href="#main-content">Enter the city</a>
+</section>
+
+<style>
+  .rapture-hero {
+    position: relative;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #05070a;
+    user-select: none;
+  }
+
+  :global(.ink-canvas) {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    touch-action: pan-y;
+    cursor: crosshair;
+  }
+
+  .hero-noise {
+    display: none;
+  }
+
+  .hero-content {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    pointer-events: none;
+    color: #fff;
+    mix-blend-mode: difference;
+  }
+
+  .hero-blend {
+    width: min(980px, calc(100% - 40px));
+    color: #fff;
+    transform: translateY(-0.6vh);
+  }
+
+  .hero-kicker {
+    position: absolute;
+    z-index: 4;
+    top: calc(50% - 150px);
+    left: 50%;
+    width: min(980px, calc(100% - 40px));
+    margin: 0;
+    transform: translateX(-50%);
+    color: rgb(240, 196, 108);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-align: center;
+    text-transform: uppercase;
+    mix-blend-mode: normal;
+    pointer-events: none;
+    text-shadow: 0 0 18px rgba(240, 196, 108, 0.28);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 4.8rem;
+    font-weight: 700;
+    line-height: 0.78;
+    color: #fff;
+    text-shadow: none;
+    letter-spacing: 0;
+  }
+
+  .hero-quote {
+    max-width: 680px;
+    margin: 38px auto 0;
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 1.22rem;
+    font-style: italic;
+    font-weight: 500;
+    line-height: 1.36;
+  }
+
+  .hero-actions {
+    position: absolute;
+    z-index: 4;
+    top: calc(50% + 176px);
+    left: 50%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 0;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    mix-blend-mode: normal;
+  }
+
+  .hero-actions a {
+    min-width: 148px;
+    min-height: 48px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 18px 50px rgba(0, 0, 0, 0.24);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    backdrop-filter: blur(18px);
+    transition:
+      transform 240ms var(--ease-out-quint),
+      border-color 240ms var(--ease-out-quint),
+      color 240ms var(--ease-out-quint),
+      box-shadow 240ms var(--ease-out-quint);
+  }
+
+  .hero-actions a:hover,
+  .hero-actions a:focus-visible {
+    transform: translateY(-3px);
+    border-color: rgba(82, 217, 255, 0.58);
+    color: white;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 0 32px rgba(82, 217, 255, 0.18),
+      0 22px 70px rgba(0, 0, 0, 0.36);
+    outline: none;
+  }
+
+  .scroll-cue {
+    position: absolute;
+    z-index: 2;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(232, 244, 247, 0.62);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .scroll-cue::after {
+    content: "";
+    display: block;
+    width: 1px;
+    height: 34px;
+    margin: 10px auto 0;
+    background: linear-gradient(180deg, rgba(240, 196, 108, 0.8), transparent);
+    animation: cue 1.8s var(--ease-out-quint) infinite;
+  }
+
+  @keyframes cue {
+    0% {
+      transform: scaleY(0);
+      transform-origin: top;
+      opacity: 0;
+    }
+    35% {
+      opacity: 1;
+    }
+    100% {
+      transform: scaleY(1);
+      transform-origin: top;
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hero-kicker {
+      top: calc(50% - 132px);
+      width: min(100% - 28px, 540px);
+    }
+
+    .hero-blend {
+      width: min(100% - 28px, 540px);
+      transform: none;
+    }
+
+    .hero-actions {
+      top: calc(50% + 154px);
+    }
+
+    .hero-actions a {
+      min-width: 132px;
+    }
+  }
+
+  @media (min-width: 390px) {
+    h1 {
+      font-size: 5.6rem;
+    }
+  }
+
+  @media (min-width: 720px) {
+    .hero-kicker {
+      top: calc(50% - 184px);
+      font-size: 0.82rem;
+    }
+
+    h1 {
+      font-size: 9.5rem;
+    }
+
+    .hero-quote {
+      margin-top: 54px;
+      font-size: 1.72rem;
+    }
+
+    .hero-actions {
+      top: calc(50% + 188px);
+    }
+  }
+
+  @media (min-width: 1120px) {
+    .hero-kicker {
+      top: calc(50% - 224px);
+      font-size: 0.9rem;
+    }
+
+    h1 {
+      font-size: 15.5rem;
+    }
+
+    .hero-quote {
+      margin-top: 62px;
+      font-size: 2rem;
+    }
+
+    .hero-actions {
+      top: calc(50% + 222px);
+    }
+  }
+</style>

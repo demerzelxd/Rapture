@@ -1,0 +1,340 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { absoluteUrl, SITE_NAME } from '../../lib/site';
+import { getReadingTime } from '../../lib/readingTime';
+
+export async function getStaticPaths() {
+  const posts = (await getCollection('blog')).filter((post) => !post.data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const posts = (await getCollection('blog'))
+  .filter((entry) => !entry.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const currentIndex = posts.findIndex((entry) => entry.id === post.id);
+const newerPost = currentIndex > 0 ? posts[currentIndex - 1] : undefined;
+const olderPost = currentIndex >= 0 && currentIndex < posts.length - 1 ? posts[currentIndex + 1] : undefined;
+const postBody = post.body ?? '';
+const { Content, headings = [] } = await render(post);
+const chapterHeadings = headings.filter((heading) => heading.depth >= 2 && heading.depth <= 3);
+const postUrl = absoluteUrl(`/blog/${post.id}/`);
+const postImageUrl = post.data.cover ? absoluteUrl(post.data.cover) : absoluteUrl('/favicon.png');
+const postJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: post.data.title,
+  description: post.data.description,
+  url: postUrl,
+  datePublished: post.data.date.toISOString(),
+  dateModified: (post.data.updated ?? post.data.date).toISOString(),
+  image: postImageUrl,
+  keywords: post.data.tags,
+  isPartOf: {
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: absoluteUrl('/'),
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: absoluteUrl('/'),
+    logo: {
+      '@type': 'ImageObject',
+      url: absoluteUrl('/icon-512.png'),
+    },
+  },
+};
+---
+
+<BaseLayout
+  title={`${post.data.title} | Rapture`}
+  description={post.data.description}
+  image={post.data.cover}
+  type="article"
+  jsonLd={postJsonLd}
+>
+  <main id="main-content" class="page-main article-main" tabindex="-1">
+    <a class="back-link" href="/blog/">Return to dispatches</a>
+    <p class="page-kicker">
+      {post.data.date.toLocaleDateString('en', { month: 'long', day: '2-digit', year: 'numeric' })} / {getReadingTime(postBody)}
+    </p>
+    <h1 class="page-title">{post.data.title}</h1>
+    <p class="page-subtitle">{post.data.description}</p>
+    {post.data.cover && (
+      <img class="article-cover" src={post.data.cover} alt={post.data.coverAlt ?? post.data.title} loading="eager" />
+    )}
+    <div class={chapterHeadings.length > 0 ? 'article-shell' : 'article-shell solo'}>
+      {chapterHeadings.length > 0 && (
+        <aside class="article-toc" aria-label="Article chapters">
+          <p>Chapters</p>
+          <nav>
+            {chapterHeadings.map((heading) => (
+              <a class={`depth-${heading.depth}`} href={`#${heading.slug}`}>{heading.text}</a>
+            ))}
+          </nav>
+        </aside>
+      )}
+      <article class="content-prose">
+        <Content />
+      </article>
+    </div>
+    <nav class="entry-nav article-nav" aria-label="Adjacent articles">
+      {newerPost ? (
+        <a href={`/blog/${newerPost.id}/`}>
+          <b>Newer dispatch</b>
+          <strong>{newerPost.data.title}</strong>
+        </a>
+      ) : (
+        <span>
+          <b>Newest dispatch</b>
+          <strong>You are at the glass.</strong>
+        </span>
+      )}
+      {olderPost ? (
+        <a href={`/blog/${olderPost.id}/`}>
+          <b>Older dispatch</b>
+          <strong>{olderPost.data.title}</strong>
+        </a>
+      ) : (
+        <span>
+          <b>Oldest dispatch</b>
+          <strong>The archive ends here.</strong>
+        </span>
+      )}
+    </nav>
+  </main>
+  <script is:inline src="/scripts/code-blocks.js" defer></script>
+  <script is:inline>
+    const fixedHeader = document.querySelector('.site-header');
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    const getChapterOffset = (target) => {
+      const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const targetRect = target.getBoundingClientRect();
+      const targetLeft = targetRect.left - rootFontSize;
+      const targetRight = targetRect.right + rootFontSize;
+      const blockers = fixedHeader instanceof HTMLElement
+        ? Array.from(fixedHeader.children)
+        : [];
+
+      const blockingBottom = blockers.reduce((bottom, blocker) => {
+        if (!(blocker instanceof HTMLElement)) return bottom;
+        const rect = blocker.getBoundingClientRect();
+        const overlapsTarget = rect.right > targetLeft && rect.left < targetRight;
+        return overlapsTarget ? Math.max(bottom, rect.bottom) : bottom;
+      }, 0);
+
+      if (blockingBottom > 0) {
+        return Math.ceil(blockingBottom + Math.max(2, rootFontSize * 0.125));
+      }
+
+      return Math.ceil(Math.max(rootFontSize * 4.25, Math.min(window.innerHeight * 0.065, rootFontSize * 4.8)));
+    };
+
+    const scrollToChapter = (hash, mode = 'push') => {
+      if (!hash || hash === '#') return;
+      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      if (!target) return;
+
+      const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - getChapterOffset(target));
+      if (mode === 'replace') {
+        window.history.replaceState({}, '', hash);
+      } else if (mode === 'push') {
+        window.history.pushState({}, '', hash);
+      }
+
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          top,
+          behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
+        });
+      });
+    };
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        const target = event.target;
+        const targetElement = target instanceof Element
+          ? target
+          : target instanceof Node
+            ? target.parentElement
+            : null;
+        const link = targetElement?.closest('.article-toc a[href^="#"]') ?? null;
+        if (!(link instanceof HTMLAnchorElement)) return;
+        event.preventDefault();
+        scrollToChapter(link.hash);
+      },
+      true
+    );
+
+    window.addEventListener('hashchange', () => {
+      scrollToChapter(window.location.hash, 'replace');
+    });
+
+    if (window.location.hash) {
+      requestAnimationFrame(() => scrollToChapter(window.location.hash, 'replace'));
+    }
+  </script>
+</BaseLayout>
+
+<style>
+  .article-main {
+    display: block;
+  }
+
+  .back-link {
+    margin-bottom: 36px;
+    color: rgba(232, 244, 247, 0.62);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition:
+      color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint);
+  }
+
+  .back-link:hover,
+  .back-link:focus-visible {
+    color: var(--brass-soft);
+    transform: translateX(-4px);
+    outline: none;
+  }
+
+  .article-shell {
+    width: 100%;
+    max-width: 1040px;
+    margin-top: 54px;
+    display: grid;
+    grid-template-columns: minmax(180px, 230px) minmax(0, 760px);
+    gap: clamp(24px, 4vw, 44px);
+    align-items: start;
+  }
+
+  .article-shell.solo {
+    max-width: 760px;
+    display: block;
+  }
+
+  .article-shell .content-prose {
+    margin-top: 0;
+  }
+
+  .article-toc {
+    position: sticky;
+    top: 106px;
+    width: 100%;
+    border-left: 1px solid rgba(240, 196, 108, 0.22);
+    padding-left: 18px;
+    user-select: none;
+  }
+
+  .article-toc p {
+    margin: 0 0 16px;
+    color: var(--brass-soft);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .article-toc nav {
+    max-height: calc(100dvh - 164px);
+    display: grid;
+    gap: 10px;
+    overflow: auto;
+    padding-right: 8px;
+  }
+
+  .article-toc a {
+    color: rgba(232, 244, 247, 0.58);
+    font-size: 0.9rem;
+    line-height: 1.35;
+    transition:
+      color 180ms var(--ease-out-quint),
+      transform 180ms var(--ease-out-quint);
+  }
+
+  .article-toc a.depth-3 {
+    padding-left: 14px;
+    color: rgba(232, 244, 247, 0.44);
+    font-size: 0.82rem;
+  }
+
+  .article-toc a:hover,
+  .article-toc a:focus-visible {
+    color: var(--brass-soft);
+    transform: translateX(3px);
+    outline: none;
+  }
+
+  .article-cover {
+    width: min(100%, 980px);
+    max-height: 520px;
+    margin-top: 48px;
+    border: 1px solid rgba(232, 244, 247, 0.14);
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 30px 120px rgba(0, 0, 0, 0.38);
+  }
+
+  @media (max-width: 920px) {
+    .article-shell {
+      display: block;
+      max-width: 760px;
+    }
+
+    .article-toc {
+      position: relative;
+      top: auto;
+      margin-bottom: 34px;
+      border-left: 0;
+      border-top: 1px solid rgba(240, 196, 108, 0.22);
+      padding: 18px 0 18px;
+    }
+
+    .article-toc nav {
+      max-height: none;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      overflow: visible;
+      padding: 0;
+    }
+
+    .article-toc a {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid rgba(232, 244, 247, 0.08);
+      font-size: 0.94rem;
+    }
+
+    .article-toc a.depth-3 {
+      padding-left: 18px;
+      font-size: 0.86rem;
+    }
+
+    .article-toc a.depth-3::before {
+      content: "";
+      width: 12px;
+      height: 1px;
+      margin-right: 10px;
+      background: rgba(82, 217, 255, 0.28);
+    }
+
+    .article-toc a:last-child {
+      border-bottom: 0;
+    }
+  }
+</style>

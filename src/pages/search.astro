@@ -1,0 +1,267 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getReadingTime } from '../lib/readingTime';
+
+const posts = (await getCollection('blog'))
+  .filter((post) => !post.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const photos = (await getCollection('photos'))
+  .filter((photo) => !photo.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const results = [
+  ...posts.map((post) => ({
+    kind: 'writing' as const,
+    href: `/blog/${post.id}/`,
+    title: post.data.title,
+    eyebrow: post.data.date.toLocaleDateString('en', { month: 'long', day: '2-digit', year: 'numeric' }),
+    meta: getReadingTime(post.body ?? ''),
+    description: post.data.description,
+    chips: post.data.tags,
+    text: [post.data.title, post.data.description, post.data.tags.join(' '), post.body ?? ''].join(' '),
+    date: post.data.date,
+  })),
+  ...photos.map((photo) => ({
+    kind: 'gallery' as const,
+    href: `/gallery/${photo.id}/`,
+    title: photo.data.title,
+    eyebrow: photo.data.location,
+    meta: photo.data.date.toLocaleDateString('en', { month: 'long', day: '2-digit', year: 'numeric' }),
+    description: photo.data.tone,
+    chips: [photo.data.location],
+    text: [photo.data.title, photo.data.location, photo.data.tone, photo.data.alt ?? '', photo.body ?? ''].join(' '),
+    src: photo.data.src,
+    alt: photo.data.alt ?? photo.data.title,
+    width: photo.data.width,
+    height: photo.data.height,
+    date: photo.data.date,
+  })),
+].sort((a, b) => b.date.valueOf() - a.date.valueOf());
+
+const writingCount = posts.length;
+const galleryCount = photos.length;
+---
+
+<BaseLayout title="Search | Rapture" description="Search the writing and photography held inside Rapture.">
+  <main id="main-content" class="page-main search-main" tabindex="-1" data-filter-scope data-filter-param="type">
+    <p class="page-kicker">Search</p>
+    <h1 class="page-title">Find the signal under pressure.</h1>
+    <p class="page-subtitle">
+      Search dispatches and frames together. One aperture for notes, essays, places, tones, and the light that stayed.
+    </p>
+
+    <section class="archive-tools card search-console" aria-label="Site search">
+      <div class="filter-topline">
+        <label class="filter-field">
+          <span>Search Rapture</span>
+          <input data-filter-input type="search" placeholder="Essay, city, tag, tone..." autocomplete="off" />
+        </label>
+        <output class="filter-count" data-filter-count>{results.length} / {results.length}</output>
+      </div>
+      <div class="filter-options" aria-label="Search result types">
+        <button class="filter-chip active" type="button" data-filter-option="all" aria-pressed="true">All ({results.length})</button>
+        <button class="filter-chip" type="button" data-filter-option="writing" aria-pressed="false">Writing ({writingCount})</button>
+        <button class="filter-chip" type="button" data-filter-option="gallery" aria-pressed="false">Gallery ({galleryCount})</button>
+        <button class="filter-reset" type="button" data-filter-reset>Clear</button>
+      </div>
+    </section>
+
+    <section class="search-results" aria-label="Search results">
+      {results.map((result) => (
+        <a
+          class={`search-card card ${result.kind === 'gallery' ? 'has-image' : ''}`}
+          href={result.href}
+          data-filter-item
+          data-filter-values={result.kind}
+          data-filter-text={result.text}
+        >
+          {'src' in result && (
+            <span class="search-image" aria-hidden="true">
+              <img src={result.src} alt="" loading="lazy" width={result.width} height={result.height} />
+            </span>
+          )}
+          <span class="search-kind">{result.kind}</span>
+          <span class="search-eyebrow">{result.eyebrow} / {result.meta}</span>
+          <h2>{result.title}</h2>
+          <p>{result.description}</p>
+          <span class="search-chips">
+            {result.chips.map((chip) => <em>{chip}</em>)}
+          </span>
+        </a>
+      ))}
+    </section>
+    <p class="filter-empty" data-filter-empty hidden>No signal returned from that depth.</p>
+  </main>
+  <script is:inline src="/scripts/archive-filter.js" defer></script>
+</BaseLayout>
+
+<style>
+  .search-main {
+    width: min(1180px, calc(100% - 36px));
+  }
+
+  .search-console {
+    margin-top: 48px;
+  }
+
+  .search-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  .search-card {
+    min-height: 292px;
+    display: grid;
+    align-content: end;
+    gap: 10px;
+    padding: clamp(22px, 4vw, 34px);
+    transition:
+      border-color 260ms var(--ease-out-quint),
+      box-shadow 320ms var(--ease-out-quint),
+      transform 320ms var(--ease-out-quint);
+  }
+
+  .search-card:hover,
+  .search-card:focus-visible {
+    transform: translateY(-4px);
+    border-color: rgba(82, 217, 255, 0.34);
+    box-shadow:
+      0 0 0 1px rgba(82, 217, 255, 0.08),
+      0 34px 110px rgba(0, 0, 0, 0.38);
+    outline: none;
+  }
+
+  .search-card.has-image {
+    min-height: 420px;
+  }
+
+  .search-image {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .search-image::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(5, 7, 10, 0.12), rgba(5, 7, 10, 0.78)),
+      radial-gradient(circle at 78% 16%, rgba(82, 217, 255, 0.2), transparent 18rem);
+  }
+
+  .search-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.74) contrast(1.04) brightness(0.72);
+    transition:
+      transform 720ms var(--ease-out-quint),
+      filter 720ms var(--ease-out-quint);
+  }
+
+  .search-card:hover .search-image img,
+  .search-card:focus-visible .search-image img {
+    transform: scale(1.045);
+    filter: saturate(1) contrast(1.08) brightness(0.86);
+  }
+
+  .search-kind,
+  .search-eyebrow,
+  .search-card h2,
+  .search-card p,
+  .search-chips {
+    position: relative;
+    z-index: 1;
+  }
+
+  .search-kind,
+  .search-eyebrow {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    user-select: none;
+  }
+
+  .search-kind {
+    width: fit-content;
+    border: 1px solid rgba(240, 196, 108, 0.18);
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: rgba(240, 196, 108, 0.08);
+    color: var(--brass-soft);
+    font-size: 0.64rem;
+    letter-spacing: 0.13em;
+  }
+
+  .search-eyebrow {
+    color: rgba(232, 244, 247, 0.52);
+    font-size: 0.72rem;
+    letter-spacing: 0.11em;
+  }
+
+  .search-card h2 {
+    margin: 6px 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.3rem, 6vw, 4.8rem);
+    line-height: 0.9;
+    transition: color 260ms var(--ease-out-quint);
+    user-select: none;
+  }
+
+  .search-card:hover h2,
+  .search-card:focus-visible h2 {
+    color: var(--brass-soft);
+  }
+
+  .search-card p {
+    max-width: 620px;
+    margin: 0;
+    color: rgba(232, 244, 247, 0.68);
+    line-height: 1.7;
+  }
+
+  .search-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    user-select: none;
+  }
+
+  .search-chips em {
+    border: 1px solid rgba(232, 244, 247, 0.12);
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: rgba(5, 7, 10, 0.28);
+    color: rgba(232, 244, 247, 0.62);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-style: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 820px) {
+    .search-results {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .search-main {
+      width: min(100% - 28px, 1180px);
+    }
+
+    .search-card,
+    .search-card.has-image {
+      min-height: 280px;
+    }
+
+    .search-card h2 {
+      font-size: clamp(2rem, 14vw, 3.8rem);
+    }
+  }
+</style>

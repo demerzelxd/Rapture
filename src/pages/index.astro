@@ -1,0 +1,261 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import { getReadingTime } from '../lib/readingTime';
+
+const posts = (await getCollection('blog'))
+  .filter((post) => !post.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 2);
+const featuredPhotos = (await getCollection('photos'))
+  .filter((photo) => !photo.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 4);
+---
+
+<BaseLayout title="Rapture | Ink beneath the surface" preloadInk>
+  <Hero />
+  <main id="main-content" class="home-surface" tabindex="-1">
+    <section class="surface-intro">
+      <p class="page-kicker">Below the glass</p>
+      <h2 class="section-title">Private notes and captured light from the drowned city.</h2>
+      <p class="section-copy">
+        Rapture keeps two public doors open: dispatches for thoughts that need a shape,
+        and a gallery for light that survived the pressure. No welcome mat, no brochure,
+        just a quiet room below sea level.
+      </p>
+    </section>
+
+    <section class="home-grid" aria-label="Latest content">
+      <div class="home-panel card">
+        <div class="panel-topline">Writing</div>
+        {posts.map((post) => (
+          <a class="post-preview" href={`/blog/${post.id}/`}>
+            <span>{post.data.date.toLocaleDateString('en', { month: 'short', day: '2-digit', year: 'numeric' })} / {getReadingTime(post.body ?? '')}</span>
+            <strong>{post.data.title}</strong>
+            <p>{post.data.description}</p>
+          </a>
+        ))}
+        <a class="panel-link" href="/blog/">Read the dispatches</a>
+      </div>
+
+      <div class="home-panel card photo-panel">
+        <div class="panel-topline">Gallery</div>
+        <div class="photo-strip">
+          {featuredPhotos.map((photo) => (
+            <a href={`/gallery/${photo.id}/`} aria-label={`Open ${photo.data.title}`}>
+              <img src={photo.data.src} alt={photo.data.alt ?? photo.data.title} loading="lazy" width={photo.data.width} height={photo.data.height} />
+            </a>
+          ))}
+        </div>
+        <a class="panel-link" href="/gallery/">Walk the gallery</a>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .home-surface {
+    position: relative;
+    z-index: 3;
+    padding: clamp(76px, 9vw, 132px) clamp(18px, 4vw, 56px) 120px;
+    background:
+      radial-gradient(circle at 70% 0%, rgba(82, 217, 255, 0.1), transparent 32rem),
+      linear-gradient(180deg, rgba(5, 7, 10, 0.96), #07141c 42%, #05070a 100%);
+  }
+
+  .surface-intro {
+    width: min(1120px, 100%);
+    margin: 0 auto 42px;
+  }
+
+  .surface-intro .section-title {
+    max-width: 920px;
+  }
+
+  .surface-intro .section-copy {
+    max-width: 720px;
+  }
+
+  .home-grid {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 18px;
+  }
+
+  .home-panel {
+    min-height: 420px;
+    padding: clamp(22px, 4vw, 34px);
+  }
+
+  .panel-topline {
+    margin-bottom: 28px;
+    color: var(--brass-soft);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .post-preview {
+    display: block;
+    padding: 22px 0;
+    border-top: 1px solid rgba(232, 244, 247, 0.1);
+    transition:
+      border-color 260ms var(--ease-out-quint),
+      transform 260ms var(--ease-out-quint);
+  }
+
+  .post-preview:hover,
+  .post-preview:focus-visible {
+    border-color: rgba(240, 196, 108, 0.3);
+    transform: translateX(8px);
+    outline: none;
+  }
+
+  .post-preview span {
+    color: rgba(232, 244, 247, 0.48);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+  }
+
+  .post-preview strong {
+    display: block;
+    margin-top: 8px;
+    color: white;
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    line-height: 1;
+    transition: color 260ms var(--ease-out-quint);
+  }
+
+  .post-preview:hover strong,
+  .post-preview:focus-visible strong {
+    color: var(--brass-soft);
+  }
+
+  .post-preview p {
+    max-width: 520px;
+    color: rgba(232, 244, 247, 0.62);
+    line-height: 1.7;
+  }
+
+  .panel-link {
+    position: absolute;
+    right: 28px;
+    bottom: 24px;
+    color: var(--cyan);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color 220ms var(--ease-out-quint);
+  }
+
+  .panel-link::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 1px;
+    margin-top: 8px;
+    background: linear-gradient(90deg, var(--cyan), transparent);
+    transform: scaleX(0.32);
+    transform-origin: left;
+    transition: transform 260ms var(--ease-out-quint);
+  }
+
+  .panel-link:hover,
+  .panel-link:focus-visible {
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .panel-link:hover::after,
+  .panel-link:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  .photo-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    height: 310px;
+  }
+
+  .photo-strip a {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(232, 244, 247, 0.1);
+  }
+
+  .photo-strip a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 35%, rgba(5, 7, 10, 0.44));
+    opacity: 0.72;
+    transition: opacity 320ms var(--ease-out-quint);
+  }
+
+  .photo-strip a:nth-child(1),
+  .photo-strip a:nth-child(3) {
+    transform: translateY(28px);
+  }
+
+  .photo-strip img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.85) contrast(1.05);
+    transition: transform 600ms var(--ease-out-quint), filter 600ms var(--ease-out-quint);
+  }
+
+  .photo-strip a:hover img,
+  .photo-strip a:focus-visible img {
+    transform: scale(1.08);
+    filter: saturate(1.08) contrast(1.08);
+  }
+
+  .photo-strip a:hover::after,
+  .photo-strip a:focus-visible::after {
+    opacity: 0.2;
+  }
+
+  @media (max-width: 840px) {
+    .home-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .photo-strip {
+      height: 260px;
+    }
+  }
+
+  @media (min-width: 760px) {
+    .post-preview strong {
+      font-size: 2.4rem;
+    }
+  }
+
+  @media (min-width: 1120px) {
+    .post-preview strong {
+      font-size: 3rem;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .home-panel {
+      min-height: auto;
+      padding-bottom: 76px;
+    }
+
+    .photo-strip {
+      grid-template-columns: repeat(2, 1fr);
+      height: 420px;
+    }
+  }
+</style>

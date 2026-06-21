@@ -1,0 +1,845 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { absoluteUrl, SITE_NAME } from '../../lib/site';
+
+export async function getStaticPaths() {
+  const photos = (await getCollection('photos')).filter((photo) => !photo.data.draft);
+  return photos.map((photo) => ({
+    params: { slug: photo.id },
+    props: { photo },
+  }));
+}
+
+const { photo } = Astro.props;
+const photos = (await getCollection('photos'))
+  .filter((entry) => !entry.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const currentIndex = photos.findIndex((entry) => entry.id === photo.id);
+const previousPhoto = currentIndex > 0 ? photos[currentIndex - 1] : undefined;
+const nextPhoto = currentIndex >= 0 && currentIndex < photos.length - 1 ? photos[currentIndex + 1] : undefined;
+const { Content } = await render(photo);
+const photoUrl = absoluteUrl(`/gallery/${photo.id}/`);
+const imageUrl = absoluteUrl(photo.data.src);
+const photoJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ImageObject',
+  name: photo.data.title,
+  description: photo.data.alt ?? `${photo.data.title}, ${photo.data.location}.`,
+  contentUrl: imageUrl,
+  thumbnailUrl: imageUrl,
+  url: photoUrl,
+  width: photo.data.width,
+  height: photo.data.height,
+  datePublished: photo.data.date.toISOString(),
+  locationCreated: {
+    '@type': 'Place',
+    name: photo.data.location,
+  },
+  isPartOf: {
+    '@type': 'ImageGallery',
+    name: `${SITE_NAME} Gallery`,
+    url: absoluteUrl('/gallery/'),
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: absoluteUrl('/'),
+    logo: {
+      '@type': 'ImageObject',
+      url: absoluteUrl('/icon-512.png'),
+    },
+  },
+};
+---
+
+<BaseLayout
+  title={`${photo.data.title} | Rapture`}
+  description={`${photo.data.title}, ${photo.data.location}.`}
+  image={photo.data.src}
+  jsonLd={photoJsonLd}
+>
+  <main id="main-content" class="photo-detail" tabindex="-1" style={`--photo-ambient-image: url("${photo.data.src}")`}>
+    <a class="back-link" href="/gallery/">Return to gallery</a>
+    <section class="photo-stage">
+      <button class="photo-image-button" type="button" data-photo-open aria-label={`View ${photo.data.title} full frame`}>
+        <img src={photo.data.src} alt={photo.data.alt ?? photo.data.title} width={photo.data.width} height={photo.data.height} />
+      </button>
+      <button class="view-frame-button" type="button" data-photo-open aria-label={`View ${photo.data.title} full frame`}>
+        Full frame
+      </button>
+      <aside class="photo-caption card">
+        <p class="page-kicker">{photo.data.location}</p>
+        <h1>{photo.data.title}</h1>
+        <p>{photo.data.tone}</p>
+        <time datetime={photo.data.date.toISOString()}>{photo.data.date.toLocaleDateString('en', { month: 'long', day: '2-digit', year: 'numeric' })}</time>
+        <div class="photo-note">
+          <Content />
+        </div>
+        <nav class="photo-switcher" aria-label="Adjacent photos">
+          {previousPhoto ? (
+            <a href={`/gallery/${previousPhoto.id}/`}>
+              <b>Previous frame</b>
+              <span>{previousPhoto.data.title}</span>
+            </a>
+          ) : (
+            <span>
+              <b>First frame</b>
+              <span>Current pressure</span>
+            </span>
+          )}
+          {nextPhoto ? (
+            <a href={`/gallery/${nextPhoto.id}/`}>
+              <b>Next frame</b>
+              <span>{nextPhoto.data.title}</span>
+            </a>
+          ) : (
+            <span>
+              <b>Last frame</b>
+              <span>End of the wall</span>
+            </span>
+          )}
+        </nav>
+      </aside>
+    </section>
+  </main>
+
+  <dialog class="photo-viewer" id="photo-viewer" data-photo-viewer aria-labelledby="photo-viewer-title" style={`--photo-ambient-image: url("${photo.data.src}")`}>
+    <div class="viewer-field">
+      <button class="viewer-close" type="button" data-photo-close aria-label="Close full frame">Close</button>
+      <figure class="viewer-frame">
+        <img src={photo.data.src} alt={photo.data.alt ?? photo.data.title} width={photo.data.width} height={photo.data.height} />
+        <figcaption class="viewer-caption">
+          <p>{photo.data.location}</p>
+          <h2 id="photo-viewer-title">{photo.data.title}</h2>
+          <span>{photo.data.tone}</span>
+        </figcaption>
+      </figure>
+      <nav class="viewer-nav" aria-label="Move through gallery">
+        {previousPhoto ? (
+          <a href={`/gallery/${previousPhoto.id}/?view=full`} data-viewer-prev aria-label={`Previous frame: ${previousPhoto.data.title}`}>
+            <span>Previous</span>
+            <b>{previousPhoto.data.title}</b>
+          </a>
+        ) : (
+          <span class="viewer-nav-disabled">
+            <span>Previous</span>
+            <b>First frame</b>
+          </span>
+        )}
+        {nextPhoto ? (
+          <a href={`/gallery/${nextPhoto.id}/?view=full`} data-viewer-next aria-label={`Next frame: ${nextPhoto.data.title}`}>
+            <span>Next</span>
+            <b>{nextPhoto.data.title}</b>
+          </a>
+        ) : (
+          <span class="viewer-nav-disabled">
+            <span>Next</span>
+            <b>Last frame</b>
+          </span>
+        )}
+      </nav>
+    </div>
+  </dialog>
+  <script is:inline>
+    const viewer = document.querySelector('[data-photo-viewer]');
+    const openers = Array.from(document.querySelectorAll('[data-photo-open]'));
+    const closeButton = document.querySelector('[data-photo-close]');
+    const previousLink = document.querySelector('[data-viewer-prev]');
+    const nextLink = document.querySelector('[data-viewer-next]');
+    const fullViewParam = 'view';
+
+    if (viewer && openers.length) {
+      let lastActive = null;
+      let touchStart = null;
+
+      const updateFullViewState = (active) => {
+        const url = new URL(window.location.href);
+        if (active) {
+          url.searchParams.set(fullViewParam, 'full');
+        } else {
+          url.searchParams.delete(fullViewParam);
+        }
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      };
+
+      const unlockViewer = () => {
+        document.body.classList.remove('photo-viewer-lock');
+        viewer.removeAttribute('data-entered');
+        if (lastActive instanceof HTMLElement) {
+          lastActive.focus({ preventScroll: true });
+        }
+      };
+
+      const openViewer = ({ syncUrl = true } = {}) => {
+        if (viewer.open) return;
+        lastActive = document.activeElement;
+        if (typeof viewer.showModal === 'function') {
+          viewer.showModal();
+        } else {
+          viewer.setAttribute('open', '');
+        }
+        if (syncUrl) {
+          updateFullViewState(true);
+        }
+        document.body.classList.add('photo-viewer-lock');
+        requestAnimationFrame(() => viewer.setAttribute('data-entered', 'true'));
+        if (closeButton instanceof HTMLElement) {
+          closeButton.focus({ preventScroll: true });
+        }
+      };
+
+      const closeViewer = () => {
+        updateFullViewState(false);
+        if (viewer.open && typeof viewer.close === 'function') {
+          viewer.close();
+        } else {
+          viewer.removeAttribute('open');
+          unlockViewer();
+        }
+      };
+
+      const followFrame = (link) => {
+        if (link instanceof HTMLAnchorElement) {
+          link.click();
+        }
+      };
+
+      openers.forEach((opener) => {
+        opener.addEventListener('click', () => openViewer());
+      });
+
+      closeButton?.addEventListener('click', closeViewer);
+
+      viewer.addEventListener('click', (event) => {
+        if (event.target === viewer) {
+          closeViewer();
+        }
+      });
+
+      viewer.addEventListener('close', () => {
+        updateFullViewState(false);
+        unlockViewer();
+      });
+
+      viewer.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          followFrame(nextLink);
+        }
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          followFrame(previousLink);
+        }
+      });
+
+      viewer.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse') return;
+        touchStart = { x: event.clientX, y: event.clientY };
+      });
+
+      viewer.addEventListener('pointerup', (event) => {
+        if (!touchStart || event.pointerType === 'mouse') return;
+        const deltaX = event.clientX - touchStart.x;
+        const deltaY = event.clientY - touchStart.y;
+        touchStart = null;
+        if (Math.abs(deltaX) < 70 || Math.abs(deltaY) > 80) return;
+        followFrame(deltaX < 0 ? nextLink : previousLink);
+      });
+
+      if (new URLSearchParams(window.location.search).get(fullViewParam) === 'full') {
+        requestAnimationFrame(() => openViewer({ syncUrl: false }));
+      }
+    }
+  </script>
+</BaseLayout>
+
+<style>
+  .photo-detail {
+    position: relative;
+    isolation: isolate;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding: 112px clamp(16px, 4vw, 44px) 44px;
+    background: #05070a;
+  }
+
+  .photo-detail::before,
+  .photo-detail::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .photo-detail::before {
+    z-index: -2;
+    inset: -12%;
+    background: var(--photo-ambient-image) center / cover no-repeat;
+    filter: blur(58px) saturate(1.45) contrast(1.04) brightness(0.72);
+    opacity: 0.48;
+    transform: scale(1.08);
+  }
+
+  .photo-detail::after {
+    z-index: -1;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(5, 7, 10, 0.1), rgba(5, 7, 10, 0.64) 68%),
+      linear-gradient(180deg, rgba(3, 5, 8, 0.3), rgba(3, 5, 8, 0.82));
+  }
+
+  .back-link {
+    position: fixed;
+    z-index: 5;
+    left: clamp(16px, 4vw, 44px);
+    bottom: 26px;
+    min-height: 44px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(232, 244, 247, 0.14);
+    border-radius: 999px;
+    padding: 0 16px;
+    background: rgba(5, 7, 10, 0.52);
+    color: rgba(232, 244, 247, 0.76);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    backdrop-filter: blur(16px);
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint);
+  }
+
+  .back-link:hover,
+  .back-link:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(240, 196, 108, 0.42);
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .photo-stage {
+    position: relative;
+    z-index: 1;
+    min-height: calc(100dvh - 156px);
+    display: grid;
+    place-items: center;
+  }
+
+  .photo-stage::before {
+    content: "";
+    position: absolute;
+    inset: -120px -44px;
+    background:
+      var(--photo-ambient-image) center / cover no-repeat,
+      radial-gradient(circle at 18% 26%, rgba(82, 217, 255, 0.12), transparent 26rem),
+      radial-gradient(circle at 82% 8%, rgba(184, 138, 59, 0.16), transparent 30rem);
+    background-blend-mode: screen, normal, normal;
+    filter: blur(48px) saturate(1.28) brightness(0.54);
+    opacity: 0.38;
+    pointer-events: none;
+  }
+
+  .photo-stage img {
+    position: relative;
+    width: auto;
+    height: auto;
+    max-width: min(100%, 1320px);
+    max-height: calc(100dvh - 170px);
+    border: 1px solid rgba(232, 244, 247, 0.14);
+    border-radius: 8px;
+    object-fit: contain;
+    box-shadow: 0 30px 120px rgba(0, 0, 0, 0.5);
+  }
+
+  .photo-image-button {
+    all: unset;
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    cursor: zoom-in;
+  }
+
+  .photo-image-button:focus-visible img {
+    outline: 1px solid rgba(240, 196, 108, 0.72);
+    outline-offset: 5px;
+  }
+
+  .view-frame-button {
+    position: absolute;
+    z-index: 4;
+    top: clamp(12px, 2.4vw, 28px);
+    right: clamp(12px, 2.4vw, 28px);
+    min-height: 42px;
+    border: 1px solid rgba(232, 244, 247, 0.14);
+    border-radius: 999px;
+    padding: 0 14px;
+    background:
+      radial-gradient(circle at 50% 120%, rgba(240, 196, 108, 0.18), transparent 62%),
+      rgba(5, 7, 10, 0.58);
+    color: rgba(232, 244, 247, 0.76);
+    cursor: zoom-in;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    backdrop-filter: blur(16px);
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint),
+      background 220ms var(--ease-out-quint);
+    user-select: none;
+  }
+
+  .view-frame-button:hover,
+  .view-frame-button:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(240, 196, 108, 0.4);
+    background:
+      radial-gradient(circle at 50% 120%, rgba(240, 196, 108, 0.26), transparent 62%),
+      rgba(7, 20, 28, 0.74);
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .photo-caption {
+    position: absolute;
+    z-index: 3;
+    right: clamp(10px, 3vw, 36px);
+    bottom: clamp(16px, 4vw, 42px);
+    width: min(360px, calc(100% - 20px));
+    padding: 22px;
+    backdrop-filter: blur(18px);
+  }
+
+  .photo-caption h1 {
+    margin: 8px 0;
+    font-family: var(--font-display);
+    font-size: 2.4rem;
+    line-height: 0.9;
+  }
+
+  .photo-caption p:not(.page-kicker) {
+    color: rgba(232, 244, 247, 0.72);
+  }
+
+  .photo-caption time {
+    color: rgba(232, 244, 247, 0.52);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .photo-caption h1,
+  .photo-caption time {
+    user-select: none;
+  }
+
+  .photo-note {
+    margin-top: 18px;
+    color: rgba(232, 244, 247, 0.66);
+    font-size: 0.94rem;
+    line-height: 1.7;
+  }
+
+  .photo-note :global(p) {
+    margin: 0;
+  }
+
+  .photo-switcher {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 20px;
+    user-select: none;
+  }
+
+  .photo-switcher a,
+  .photo-switcher > span {
+    min-height: 78px;
+    display: grid;
+    align-content: center;
+    gap: 6px;
+    border: 1px solid rgba(232, 244, 247, 0.12);
+    border-radius: 8px;
+    padding: 10px;
+    background: rgba(5, 7, 10, 0.44);
+  }
+
+  .photo-switcher a {
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint),
+      background 220ms var(--ease-out-quint);
+  }
+
+  .photo-switcher a:hover,
+  .photo-switcher a:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(240, 196, 108, 0.38);
+    background: rgba(7, 20, 28, 0.68);
+    outline: none;
+  }
+
+  .photo-switcher > span {
+    opacity: 0.45;
+  }
+
+  .photo-switcher b {
+    color: var(--brass-soft);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .photo-switcher span span,
+  .photo-switcher a span {
+    color: rgba(232, 244, 247, 0.76);
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .photo-viewer {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    padding: 0;
+    background:
+      radial-gradient(circle at 16% 18%, rgba(82, 217, 255, 0.16), transparent 32rem),
+      radial-gradient(circle at 86% 10%, rgba(240, 196, 108, 0.12), transparent 30rem),
+      rgba(3, 5, 8, 0.95);
+    color: var(--mist);
+    opacity: 0;
+    transform: scale(0.985);
+    transition:
+      opacity 260ms var(--ease-out-quint),
+      transform 420ms var(--ease-out-expo);
+    overflow: hidden;
+  }
+
+  .photo-viewer::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    background: var(--photo-ambient-image) center / cover no-repeat;
+    filter: blur(64px) saturate(1.35) contrast(1.08) brightness(0.6);
+    opacity: 0.42;
+    transform: scale(1.08);
+    pointer-events: none;
+  }
+
+  .photo-viewer::backdrop {
+    background: rgba(3, 5, 8, 0.72);
+    backdrop-filter: blur(18px);
+  }
+
+  .photo-viewer[open][data-entered="true"] {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .viewer-field {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    padding: clamp(18px, 3vw, 44px);
+    overflow: hidden;
+  }
+
+  .viewer-field::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(232, 244, 247, 0.045) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(232, 244, 247, 0.035) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(circle at 50% 48%, transparent 0 28%, black 72%);
+    opacity: 0.2;
+  }
+
+  .viewer-close {
+    position: absolute;
+    z-index: 4;
+    top: max(18px, env(safe-area-inset-top));
+    right: max(18px, env(safe-area-inset-right));
+    min-height: 44px;
+    border: 1px solid rgba(232, 244, 247, 0.15);
+    border-radius: 999px;
+    padding: 0 16px;
+    background: rgba(5, 7, 10, 0.62);
+    color: rgba(232, 244, 247, 0.74);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    backdrop-filter: blur(16px);
+    transition:
+      border-color 200ms var(--ease-out-quint),
+      color 200ms var(--ease-out-quint),
+      transform 200ms var(--ease-out-quint);
+  }
+
+  .viewer-close:hover,
+  .viewer-close:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(240, 196, 108, 0.42);
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .viewer-frame {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+  }
+
+  .viewer-frame img {
+    width: auto;
+    height: auto;
+    max-width: min(100%, 1500px);
+    max-height: calc(100dvh - 154px);
+    border: 1px solid rgba(232, 244, 247, 0.12);
+    border-radius: 8px;
+    object-fit: contain;
+    box-shadow: 0 34px 150px rgba(0, 0, 0, 0.62);
+    user-select: none;
+  }
+
+  .viewer-caption {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: min(360px, 70vw);
+    padding: 0 0 clamp(12px, 2vw, 24px);
+    color: rgba(232, 244, 247, 0.72);
+    pointer-events: none;
+    text-shadow: 0 2px 28px rgba(0, 0, 0, 0.82);
+    user-select: none;
+  }
+
+  .viewer-caption p {
+    margin: 0 0 8px;
+    color: var(--brass-soft);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .viewer-caption h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 8vw, 6.8rem);
+    line-height: 0.9;
+  }
+
+  .viewer-caption span {
+    display: block;
+    margin-top: 10px;
+    color: rgba(232, 244, 247, 0.62);
+    font-size: 0.92rem;
+  }
+
+  .viewer-nav {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: min(720px, 100%);
+    justify-self: center;
+    user-select: none;
+  }
+
+  .viewer-nav a,
+  .viewer-nav-disabled {
+    min-height: 66px;
+    display: grid;
+    align-content: center;
+    gap: 6px;
+    border: 1px solid rgba(232, 244, 247, 0.12);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: rgba(5, 7, 10, 0.5);
+    backdrop-filter: blur(14px);
+  }
+
+  .viewer-nav a {
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      background 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint);
+  }
+
+  .viewer-nav a:hover,
+  .viewer-nav a:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(82, 217, 255, 0.36);
+    background: rgba(7, 20, 28, 0.74);
+    outline: none;
+  }
+
+  .viewer-nav-disabled {
+    opacity: 0.42;
+  }
+
+  .viewer-nav span {
+    color: var(--brass-soft);
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .viewer-nav b {
+    overflow: hidden;
+    color: rgba(232, 244, 247, 0.8);
+    font-size: 0.86rem;
+    font-weight: 500;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(body.photo-viewer-lock) {
+    overflow: hidden;
+  }
+
+  @media (max-width: 720px) {
+    .photo-detail {
+      padding: 96px 14px 44px;
+    }
+
+    .back-link {
+      position: relative;
+      left: auto;
+      right: auto;
+      bottom: auto;
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 0 18px;
+    }
+
+    .photo-stage {
+      min-height: auto;
+      display: grid;
+      align-items: start;
+      gap: 18px;
+      padding-bottom: 0;
+    }
+
+    .photo-stage img {
+      width: auto;
+      max-width: 100%;
+      height: auto;
+      max-height: 62dvh;
+      object-fit: contain;
+      justify-self: center;
+    }
+
+    .photo-image-button {
+      width: 100%;
+    }
+
+    .view-frame-button {
+      top: 12px;
+      right: 12px;
+      min-height: 40px;
+      font-size: 0.64rem;
+    }
+
+    .photo-caption {
+      position: relative;
+      right: auto;
+      bottom: auto;
+      width: 100%;
+      padding: 22px;
+    }
+
+    .photo-caption h1 {
+      font-size: clamp(2.8rem, 15vw, 4.4rem);
+    }
+
+    .photo-switcher {
+      grid-template-columns: 1fr;
+    }
+
+    .viewer-field {
+      grid-template-rows: minmax(0, 1fr) auto;
+      padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+    }
+
+    .viewer-frame {
+      align-content: center;
+      justify-items: start;
+      gap: 14px;
+      padding: 78px 0 98px;
+    }
+
+    .viewer-frame img {
+      justify-self: center;
+      max-height: calc(100dvh - 310px);
+    }
+
+    .viewer-caption {
+      position: relative;
+      left: auto;
+      bottom: auto;
+      width: 100%;
+      padding-bottom: 0;
+    }
+
+    .viewer-caption h2 {
+      font-size: clamp(2rem, 11vw, 3.7rem);
+    }
+
+    .viewer-nav {
+      gap: 8px;
+    }
+
+    .viewer-nav a,
+    .viewer-nav-disabled {
+      min-height: 58px;
+      padding: 10px;
+    }
+  }
+
+  @media (min-width: 760px) {
+    .photo-caption h1 {
+      font-size: 3.5rem;
+    }
+  }
+
+  @media (min-width: 1120px) {
+    .photo-caption h1 {
+      font-size: 4.8rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .photo-viewer {
+      transition: none;
+      transform: none;
+    }
+  }
+</style>

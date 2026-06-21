@@ -1,0 +1,32 @@
+{
+  "name": "rapture",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "check": "npm run validate:content && npm run build && npm run validate:public",
+    "check:launch": "npm run validate:content:remote && npm run build && npm run validate:public && npm run validate:launch",
+    "build": "node scripts/clean-build-output.mjs && astro check && astro build",
+    "new:post": "node scripts/content.mjs post",
+    "new:photo": "node scripts/content.mjs photo",
+    "import:obsidian": "node scripts/content.mjs import-post",
+    "import:obsidian:folder": "node scripts/content.mjs import-posts",
+    "import:photos": "node scripts/content.mjs import-photos",
+    "validate:content": "node scripts/validate-content.mjs",
+    "validate:public": "node scripts/validate-public.mjs",
+    "validate:launch": "node scripts/validate-launch.mjs",
+    "validate:content:remote": "node scripts/validate-content.mjs --remote",
+    "preview": "astro preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@astrojs/mdx": "^6.0.3",
+    "astro": "^6.4.8",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1",
+    "yaml-language-server": "^1.23.0"
+  }
+}

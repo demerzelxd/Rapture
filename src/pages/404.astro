@@ -1,0 +1,233 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+Astro.response.status = 404;
+
+const routes = [
+  {
+    href: '/',
+    label: 'Entry',
+    detail: 'Return to the ink chamber.',
+  },
+  {
+    href: '/blog/',
+    label: 'Writing',
+    detail: 'Read the dispatches that made it back.',
+  },
+  {
+    href: '/gallery/',
+    label: 'Gallery',
+    detail: 'Walk the wall of preserved light.',
+  },
+  {
+    href: '/archive/',
+    label: 'Archive',
+    detail: 'Search the ledger by year, tag, and place.',
+  },
+];
+---
+
+<BaseLayout
+  title="Signal Lost | Rapture"
+  description="The requested passage could not be found inside Rapture."
+  canonicalPath="/404.html"
+  noindex
+>
+  <main id="main-content" class="not-found-main" tabindex="-1">
+    <section class="not-found-hero" aria-labelledby="not-found-title">
+      <p class="page-kicker">404 / Signal lost</p>
+      <h1 id="not-found-title">The bathysphere missed the station.</h1>
+      <p>
+        This corridor is sealed, moved, or never built. The pressure is still holding; choose another passage back into Rapture.
+      </p>
+      <div class="not-found-actions" aria-label="Primary recovery paths">
+        <a href="/">Return to Entry</a>
+        <a href="/search/">Search the house</a>
+      </div>
+    </section>
+
+    <section class="route-grid" aria-label="Available passages">
+      {routes.map((route) => (
+        <a class="route-card card" href={route.href}>
+          <span>{route.label}</span>
+          <p>{route.detail}</p>
+        </a>
+      ))}
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .not-found-main {
+    position: relative;
+    width: min(1180px, calc(100% - 36px));
+    min-height: 100dvh;
+    display: grid;
+    align-content: center;
+    gap: clamp(34px, 6vw, 72px);
+    margin: 0 auto;
+    padding: 138px 0 96px;
+  }
+
+  .not-found-main::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 18% 20%, rgba(82, 217, 255, 0.16), transparent 26rem),
+      radial-gradient(circle at 86% 12%, rgba(240, 196, 108, 0.12), transparent 30rem),
+      linear-gradient(120deg, transparent 0 42%, rgba(232, 244, 247, 0.032) 50%, transparent 58% 100%);
+  }
+
+  .not-found-main::after {
+    content: "404";
+    position: fixed;
+    right: clamp(-42px, -3vw, -10px);
+    bottom: clamp(-28px, -2vw, -10px);
+    z-index: -1;
+    color: rgba(232, 244, 247, 0.035);
+    font-family: var(--font-display);
+    font-size: clamp(10rem, 28vw, 28rem);
+    font-weight: 700;
+    line-height: 0.72;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .not-found-hero {
+    max-width: 880px;
+    user-select: none;
+  }
+
+  .not-found-hero h1 {
+    margin: 18px 0 22px;
+    font-family: var(--font-display);
+    font-size: clamp(4.4rem, 13vw, 11rem);
+    line-height: 0.82;
+    letter-spacing: 0;
+  }
+
+  .not-found-hero p:not(.page-kicker) {
+    max-width: 690px;
+    margin: 0;
+    color: rgba(232, 244, 247, 0.72);
+    font-size: clamp(1rem, 2vw, 1.22rem);
+    line-height: 1.8;
+  }
+
+  .not-found-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+  }
+
+  .not-found-actions a {
+    min-height: 46px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(232, 244, 247, 0.14);
+    border-radius: 999px;
+    padding: 0 18px;
+    background:
+      radial-gradient(circle at 50% 120%, rgba(240, 196, 108, 0.14), transparent 62%),
+      rgba(5, 7, 10, 0.42);
+    color: rgba(232, 244, 247, 0.78);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition:
+      border-color 220ms var(--ease-out-quint),
+      color 220ms var(--ease-out-quint),
+      transform 220ms var(--ease-out-quint),
+      background 220ms var(--ease-out-quint);
+  }
+
+  .not-found-actions a:hover,
+  .not-found-actions a:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(240, 196, 108, 0.42);
+    background:
+      radial-gradient(circle at 50% 120%, rgba(240, 196, 108, 0.22), transparent 62%),
+      rgba(7, 20, 28, 0.62);
+    color: var(--brass-soft);
+    outline: none;
+  }
+
+  .route-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .route-card {
+    min-height: 170px;
+    display: grid;
+    align-content: end;
+    gap: 12px;
+    padding: 22px;
+    transition:
+      border-color 260ms var(--ease-out-quint),
+      box-shadow 320ms var(--ease-out-quint),
+      transform 320ms var(--ease-out-quint);
+    user-select: none;
+  }
+
+  .route-card:hover,
+  .route-card:focus-visible {
+    transform: translateY(-4px);
+    border-color: rgba(82, 217, 255, 0.34);
+    box-shadow:
+      0 0 0 1px rgba(82, 217, 255, 0.08),
+      0 30px 100px rgba(0, 0, 0, 0.36);
+    outline: none;
+  }
+
+  .route-card span {
+    color: var(--brass-soft);
+    font-family: var(--font-display);
+    font-size: clamp(2.1rem, 4vw, 3.4rem);
+    line-height: 0.9;
+  }
+
+  .route-card p {
+    margin: 0;
+    color: rgba(232, 244, 247, 0.64);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+
+  @media (max-width: 900px) {
+    .route-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .not-found-main {
+      width: min(100% - 28px, 1180px);
+      min-height: auto;
+      padding-top: 112px;
+    }
+
+    .not-found-hero h1 {
+      font-size: clamp(3.8rem, 19vw, 5.8rem);
+    }
+
+    .not-found-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .route-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .route-card {
+      min-height: 132px;
+    }
+  }
+</style>

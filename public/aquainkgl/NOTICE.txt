@@ -1,0 +1,7 @@
+AquaInkGL integration for Rapture.
+
+Source reference:
+https://github.com/WishMelz/AquaInkGL
+
+The referenced repository did not include a LICENSE file when integrated.
+AquaInkGL's README credits PavelDoGreat/WebGL-Fluid-Simulation for the fluid simulation core.

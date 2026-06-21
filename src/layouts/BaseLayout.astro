@@ -1,0 +1,131 @@
+---
+import '../styles/global.css';
+import { absoluteUrl, SITE_NAME, SITE_DESCRIPTION } from '../lib/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  preloadInk?: boolean;
+  canonicalPath?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
+}
+
+const {
+  title = SITE_NAME,
+  description = SITE_DESCRIPTION,
+  preloadInk = false,
+  canonicalPath,
+  image = '/og-image.png',
+  type = 'website',
+  noindex = false,
+  jsonLd = [],
+} = Astro.props;
+const canonicalUrl = absoluteUrl(canonicalPath ?? Astro.url.pathname);
+const imageUrl = absoluteUrl(image);
+const baseJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  url: absoluteUrl('/'),
+};
+const jsonLdEntries = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+const jsonLdPayload = [baseJsonLd, ...jsonLdEntries].filter(Boolean);
+const jsonLdText = JSON.stringify(jsonLdPayload).replaceAll('<', '\\u003c');
+const currentPath = Astro.url.pathname;
+const currentSection = currentPath.startsWith('/blog/')
+  ? 'blog'
+  : currentPath.startsWith('/gallery/')
+    ? 'gallery'
+    : currentPath.startsWith('/archive/')
+      ? 'archive'
+      : currentPath === '/'
+        ? 'home'
+        : 'none';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta name="theme-color" content="#05070a" />
+    <meta name="apple-mobile-web-app-title" content={SITE_NAME} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" type="application/rss+xml" title={`${SITE_NAME} writing feed`} href={absoluteUrl('/rss.xml')} />
+    <link rel="alternate" type="application/feed+json" title={`${SITE_NAME} updates feed`} href={absoluteUrl('/feed.json')} />
+    <link rel="alternate" type="application/json" title={`${SITE_NAME} content index`} href={absoluteUrl('/content.json')} />
+    <link rel="search" type="application/opensearchdescription+xml" title={`${SITE_NAME} search`} href={absoluteUrl('/opensearch.xml')} />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    {preloadInk && <link rel="preload" href="/aquainkgl/aquainkgl.js?v=2026-06-21-upstream-aquainkgl" as="script" />}
+    {preloadInk && <link rel="preload" href="/aquainkgl/LDR_LLL1_0.png" as="image" />}
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500;1,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={imageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <script is:inline type="application/ld+json" set:html={jsonLdText} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="site-shell">
+      <header class="site-header" aria-label="Primary navigation">
+        <a class="site-mark" href="/" aria-label="Rapture home">
+          <span class="site-mark-text">Rapture</span>
+        </a>
+        <nav class="site-nav">
+          <a href="/" aria-current={currentSection === 'home' ? 'page' : undefined}>Entry</a>
+          <a href="/blog/" aria-current={currentSection === 'blog' ? 'page' : undefined}>Writing</a>
+          <a href="/gallery/" aria-current={currentSection === 'gallery' ? 'page' : undefined}>Gallery</a>
+          <a href="/archive/" aria-current={currentSection === 'archive' ? 'page' : undefined}>Archive</a>
+        </nav>
+      </header>
+      <script is:inline>
+        (() => {
+          const root = document.documentElement;
+          const header = document.querySelector('.site-header');
+          if (!(header instanceof HTMLElement)) return;
+
+          const updateAnchorOffset = () => {
+            const headerBottom = Math.max(0, Math.ceil(header.getBoundingClientRect().bottom));
+            const breathingRoom = Math.max(2, Math.round((parseFloat(getComputedStyle(root).fontSize) || 16) * 0.125));
+            root.style.setProperty('--measured-header-offset', `${headerBottom + breathingRoom}px`);
+          };
+
+          updateAnchorOffset();
+          window.addEventListener('load', updateAnchorOffset, { once: true });
+          window.addEventListener('resize', updateAnchorOffset, { passive: true });
+          window.addEventListener('orientationchange', () => requestAnimationFrame(updateAnchorOffset), { passive: true });
+
+          if ('ResizeObserver' in window) {
+            new ResizeObserver(updateAnchorOffset).observe(header);
+          }
+        })();
+      </script>
+      <slot />
+    </div>
+  </body>
+</html>

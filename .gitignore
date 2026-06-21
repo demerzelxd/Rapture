@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Astro and build output
+.astro/
+dist/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Vercel local state
+.vercel/
+
+# Local verification artifacts
+.agents/
+.codex/
+.ccg/
+.impeccable.md
+.playwright-mcp/
+console-*.txt
+rapture-*.png
+rapture-*.txt
+
+# System files
+.DS_Store
+Thumbs.db

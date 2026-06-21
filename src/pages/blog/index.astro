@@ -1,0 +1,138 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getReadingTime } from '../../lib/readingTime';
+
+const posts = (await getCollection('blog'))
+  .filter((post) => !post.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const tagCounts = posts.reduce((counts, post) => {
+  post.data.tags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1));
+  return counts;
+}, new Map<string, number>());
+const tags = [...tagCounts.entries()].sort(([a], [b]) => a.localeCompare(b));
+---
+
+<BaseLayout title="Writing | Rapture" description="Dispatches from Rapture.">
+  <main id="main-content" class="page-main" tabindex="-1" data-filter-scope data-filter-param="tag">
+    <p class="page-kicker">Writing</p>
+    <h1 class="page-title">Dispatches from the bathysphere.</h1>
+    <p class="page-subtitle">Technical fragments, private essays, and pressure leaks from the room behind the glass.</p>
+
+    <section class="archive-tools card" aria-label="Writing filters">
+      <div class="filter-topline">
+        <label class="filter-field">
+          <span>Search signal</span>
+          <input data-filter-input type="search" placeholder="Title, fragment, tag..." autocomplete="off" />
+        </label>
+        <output class="filter-count" data-filter-count>{posts.length} / {posts.length}</output>
+      </div>
+      <div class="filter-options" aria-label="Writing tags">
+        <button class="filter-chip active" type="button" data-filter-option="all" aria-pressed="true">All</button>
+        {tags.map(([tag, count]) => (
+          <button class="filter-chip" type="button" data-filter-option={tag.toLowerCase()} aria-pressed="false">{tag} ({count})</button>
+        ))}
+        <button class="filter-reset" type="button" data-filter-reset>Clear</button>
+      </div>
+    </section>
+
+    <section class="post-list">
+      {posts.map((post) => (
+        <a
+          class="post-card card"
+          href={`/blog/${post.id}/`}
+          data-filter-item
+          data-filter-values={post.data.tags.map((tag) => tag.toLowerCase()).join('|')}
+          data-filter-text={[post.data.title, post.data.description, post.data.tags.join(' '), post.body ?? ''].join(' ')}
+        >
+          <span>{post.data.date.toLocaleDateString('en', { month: 'long', day: '2-digit', year: 'numeric' })} / {getReadingTime(post.body ?? '')}</span>
+          <h2>{post.data.title}</h2>
+          <p>{post.data.description}</p>
+          <div class="tags">
+            {post.data.tags.map((tag) => <em>{tag}</em>)}
+          </div>
+        </a>
+      ))}
+    </section>
+    <p class="filter-empty" data-filter-empty hidden>No dispatch surfaced from that pressure band.</p>
+  </main>
+  <script is:inline src="/scripts/archive-filter.js" defer></script>
+</BaseLayout>
+
+<style>
+  .post-list {
+    margin-top: 18px;
+    display: grid;
+    gap: 18px;
+  }
+
+  .post-card {
+    display: block;
+    padding: clamp(24px, 4vw, 40px);
+    transition: transform 260ms var(--ease-out-quint), border-color 260ms var(--ease-out-quint);
+  }
+
+  .post-card:hover,
+  .post-card:focus-visible {
+    transform: translateY(-4px);
+    border-color: rgba(82, 217, 255, 0.34);
+    box-shadow:
+      0 0 0 1px rgba(82, 217, 255, 0.08),
+      0 34px 110px rgba(0, 0, 0, 0.36);
+    outline: none;
+  }
+
+  .post-card span {
+    color: var(--brass-soft);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+  }
+
+  .post-card h2 {
+    margin: 16px 0 10px;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    line-height: 0.95;
+    transition: color 260ms var(--ease-out-quint);
+  }
+
+  .post-card:hover h2,
+  .post-card:focus-visible h2 {
+    color: var(--brass-soft);
+  }
+
+  .post-card p {
+    max-width: 620px;
+    color: rgba(232, 244, 247, 0.66);
+    line-height: 1.7;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+  }
+
+  .tags em {
+    border: 1px solid rgba(232, 244, 247, 0.12);
+    border-radius: 999px;
+    padding: 6px 10px;
+    color: rgba(232, 244, 247, 0.6);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-style: normal;
+  }
+
+  @media (min-width: 760px) {
+    .post-card h2 {
+      font-size: 3rem;
+    }
+  }
+
+  @media (min-width: 1120px) {
+    .post-card h2 {
+      font-size: 4rem;
+    }
+  }
+</style>

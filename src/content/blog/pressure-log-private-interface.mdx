@@ -1,0 +1,110 @@
+---
+title: "Pressure Log: Designing a Private Interface"
+description: "A longer field note on chapters, code, tables, images, and the slow mood of Rapture."
+date: 2026-06-19
+tags: ["frontend", "writing", "archive"]
+cover: "https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=1600&q=82"
+coverAlt: "A wet night platform under low sodium light."
+---
+
+An interface can feel private without becoming obscure. The trick is to make the door strange, then make the room legible.
+
+Rapture begins with spectacle: ink, darkness, brass, a name that sounds like a place you should not be able to visit. After that first pressure change, the site has to become a habit. The writing must open quickly. The photographs must hold still. The system should feel built by a person who comes back at night and notices whether a line is one pixel too bright.
+
+## 01. The entrance
+
+The first screen is not a brochure. It is an arrival condition.
+
+The ink does the work that a hero paragraph would normally try to do. It says there is a world under the page, and that the page is willing to leak. Everything else can stay quiet because the door has already made its case.
+
+### What the door refuses
+
+- It refuses a corporate layout.
+- It refuses a generic profile card.
+- It refuses to explain the whole site before the visitor has touched it.
+- It refuses to let animation become noise.
+
+> A private site should not beg for attention. It should make attention feel like trespassing.
+
+## 02. The archive
+
+The archive is smaller than the entrance, but it matters more. This is where the site stops performing and starts keeping its promises.
+
+| Room | What it holds | Failure mode to avoid |
+| --- | --- | --- |
+| Writing | Notes, code, fragments, essays | Losing its human voltage |
+| Gallery | Photographs and short field notes | Becoming a stock photo wall |
+| Entry | Ink, name, atmosphere | Stealing attention forever |
+
+### A small content contract
+
+Each post only needs enough structure to survive future edits. The frontmatter stays plain so it can be written from Obsidian without ceremony.
+
+```ts
+type RapturePost = {
+  title: string;
+  description: string;
+  date: Date;
+  tags: string[];
+  cover?: string;
+  draft?: boolean;
+};
+
+const publishable = (post: RapturePost) => !post.draft && post.title.trim().length > 0;
+```
+
+The contract is ordinary on purpose. The page around it can be atmospheric; the content model should not be.
+
+## 03. Motion as weather
+
+Motion works best when it behaves like weather. It should be felt before it is noticed.
+
+### Rules for the pressure layer
+
+1. Use one signature effect on the homepage.
+2. Keep card hover states local and quiet.
+3. Prefer radial blooms over straight light sweeps.
+4. Respect reduced motion before adding any flourish.
+
+```css
+.pressure-card {
+  transform: translateY(0);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pressure-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(240, 196, 108, 0.34);
+}
+```
+
+![A rain-dark city window with soft blue light](https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1400&q=82)
+
+The photograph is not a decoration here. It is proof that the prose can make room for evidence: captions, image borders, spacing after media, and the way text resumes after a visual interruption.
+
+## 04. The reading rail
+
+Longer entries need a rail. Not a floating tutorial, not a sticky ad, just a quiet list of pressure doors.
+
+### Chapter behavior
+
+The reader should be able to jump, ignore the rail, or copy a paragraph without fighting the interface. Decorative text can be unselectable. Body text must remain useful.
+
+```js
+const chapters = headings
+  .filter((heading) => heading.depth >= 2 && heading.depth <= 3)
+  .map((heading) => ({
+    href: `#${heading.slug}`,
+    label: heading.text,
+  }));
+```
+
+## 05. What stays human
+
+The site is allowed to be theatrical because its owner is not a content brand. It is a room for recurring obsessions: code, games, films, photographs, fragments, and the private feeling of finding a name that keeps working after midnight.
+
+The public version should still have manners. It should not show scaffolding text. It should not speak in the voice of a template. It should not ask visitors to imagine the real site later.
+
+It should already be the real site.
