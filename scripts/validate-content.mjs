@@ -27,6 +27,7 @@ for (const filePath of photoFiles) {
   await validatePhoto(filePath);
 }
 
+validateContentLocations();
 validatePublicAssets();
 
 report();
@@ -61,6 +62,8 @@ function validateBlog(filePath) {
       addWarning(filePath, 'cover is present without coverAlt');
     }
   }
+
+  validateMarkdownImageSources(filePath, entry.body);
 
   if (!entry.body.trim()) {
     addWarning(filePath, 'post body is empty');
@@ -184,6 +187,13 @@ function validatePublicAssets() {
   }
 }
 
+function validateContentLocations() {
+  const publicPhotoDir = path.join(publicDir, 'photos');
+  for (const filePath of collectMdx(publicPhotoDir)) {
+    addWarning(filePath, 'Markdown photo entries under public/photos are served as static files and will not appear in Gallery; move them to src/content/photos');
+  }
+}
+
 function requireManifestString(filePath, manifest, field) {
   if (typeof manifest[field] !== 'string' || !manifest[field].trim()) {
     addError(filePath, `manifest missing or invalid string field: ${field}`);
@@ -244,16 +254,30 @@ function splitFrontmatter(text) {
 
 function parseFrontmatter(raw) {
   const data = {};
+  let pendingListKey;
+
   for (const rawLine of raw.split('\n')) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
 
+    const listMatch = rawLine.match(/^\s*-\s+(.*)$/);
+    if (pendingListKey && listMatch) {
+      if (!Array.isArray(data[pendingListKey])) data[pendingListKey] = [];
+      const item = unquote(listMatch[1].trim());
+      if (item) data[pendingListKey].push(item);
+      continue;
+    }
+
     const match = line.match(/^([A-Za-z][\w-]*):\s*(.*)$/);
-    if (!match) continue;
+    if (!match) {
+      pendingListKey = undefined;
+      continue;
+    }
 
     const key = match[1];
     const value = match[2].trim();
     data[key] = parseValue(value);
+    pendingListKey = value === '' ? key : undefined;
   }
   return data;
 }
@@ -300,9 +324,33 @@ function validateImageSource(filePath, value, field) {
   }
 
   try {
-    new URL(value);
+    const url = new URL(value);
+    warnIfHttpImageSource(filePath, url, field);
   } catch {
     addError(filePath, `${field} must be a public path or full URL: ${value}`);
+  }
+}
+
+function validateMarkdownImageSources(filePath, body) {
+  const withoutCodeFences = body.replace(/(^|\n)(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\2[^\n]*(?=\n|$)/g, '\n');
+  const imagePattern = /!\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
+
+  for (const match of withoutCodeFences.matchAll(imagePattern)) {
+    const rawSrc = match[1].trim().replace(/^<|>$/g, '');
+    if (!rawSrc || rawSrc.startsWith('/')) continue;
+
+    try {
+      const url = new URL(rawSrc);
+      warnIfHttpImageSource(filePath, url, 'markdown image');
+    } catch {
+      addWarning(filePath, `markdown image uses a non-public relative path that may not render after build: ${rawSrc}`);
+    }
+  }
+}
+
+function warnIfHttpImageSource(filePath, url, field) {
+  if (url.protocol === 'http:') {
+    addWarning(filePath, `${field} uses http://; HTTPS deployments usually block it as mixed content: ${url.href}`);
   }
 }
 

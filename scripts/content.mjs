@@ -427,9 +427,22 @@ function splitFrontmatter(text) {
 
 function parseSimpleFrontmatter(raw) {
   const data = {};
+  let pendingListKey;
+
   for (const rawLine of raw.split('\n')) {
+    const listMatch = rawLine.match(/^\s*-\s+(.*)$/);
+    if (pendingListKey && listMatch) {
+      if (!Array.isArray(data[pendingListKey])) data[pendingListKey] = [];
+      const item = unquote(listMatch[1].trim());
+      if (item) data[pendingListKey].push(item);
+      continue;
+    }
+
     const match = rawLine.match(/^([A-Za-z][\w-]*):\s*(.*)$/);
-    if (!match) continue;
+    if (!match) {
+      pendingListKey = undefined;
+      continue;
+    }
 
     const key = toCamelCase(match[1]);
     const value = match[2].trim();
@@ -439,8 +452,13 @@ function parseSimpleFrontmatter(raw) {
         .split(',')
         .map((entry) => unquote(entry.trim()))
         .filter(Boolean);
+      pendingListKey = undefined;
+    } else if (value === '') {
+      data[key] = '';
+      pendingListKey = key;
     } else {
       data[key] = unquote(value);
+      pendingListKey = undefined;
     }
   }
 
