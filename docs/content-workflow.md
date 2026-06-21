@@ -19,11 +19,17 @@ Rapture 是一个静态 Astro 站点。新的文章和相册条目通过新增 M
 
 `/content.json` 包含规范绝对 URL，并且只包含已发布条目。`/feed.json` 使用同样的草稿过滤规则，`/rss.xml` 则保持为只包含写作内容。`/opensearch.xml` 指向 `/search/?q={searchTerms}`，不需要服务器支持。
 
+## 推荐工作流
+
+现在推荐把 Obsidian 作为日常工作台：在 Obsidian 写文章或维护 Gallery 条目，通过 fast-note-sync-service 推送到 GitHub 仓库里的 `src/content/blog/` 或 `src/content/photos/`，再由 Vercel 触发静态构建。
+
+完整模板和图片托管建议见 [obsidian-workbench.md](obsidian-workbench.md)。
+
+`/studio/` 是早期隐藏的浏览器 frontmatter 生成器，当前没有公开导航入口，也不进入 sitemap。Obsidian + FNS 跑顺后可以删除它；在删除前，它只作为历史备用工具，不再作为推荐路径。
+
 ## 写作
 
-如果希望在浏览器里起草，打开 `/studio/`。它生成的 MDX 格式和命令行工具一致，可以复制或下载文件。
-
-日常草稿建议使用本地 helper：
+日常草稿也可以使用本地 helper：
 
 ```bash
 npm run new:post -- -- --title "文章标题" --description "一句用于卡片和元数据的摘要。" --tags "note,frontend"
@@ -67,8 +73,6 @@ console.log('支持代码块');
 - 代码块、链接、引用、表格和图片都会由文章渲染器统一样式化。
 
 ## 相册
-
-如果希望在浏览器里起草，打开 `/studio/` 并切换到 Gallery。它会生成和静态相册一致字段的照片 MDX 文件。
 
 新增照片条目可以使用本地 helper：
 
@@ -119,7 +123,15 @@ draft: false
 
 ## Obsidian
 
-低摩擦路径是保留一个 Obsidian vault 文件夹作为草稿箱，然后把完成或接近完成的笔记导入站点：
+当前最顺的路径是让 Obsidian 直接维护 Rapture 内容目录，并由 fast-note-sync-service 负责 Git 同步：
+
+```text
+Obsidian -> FNS -> GitHub -> Vercel -> Rapture
+```
+
+文章同步到 `src/content/blog/`，Gallery 条目同步到 `src/content/photos/`。文章缺少 frontmatter 时，`npm run build` 会先执行 `npm run normalize:obsidian` 自动补齐；但直接同步进 `src/content/blog/` 的文章如果没有 `draft: true`，会按公开内容处理。
+
+如果仍然想从一个普通 vault 草稿箱手动导入文章，可以使用旧导入器：
 
 ```bash
 npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay"

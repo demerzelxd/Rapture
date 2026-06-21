@@ -119,6 +119,10 @@ const postJsonLd = {
 
     const getRootFontSize = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const getViewportHeight = () => window.visualViewport?.height ?? window.innerHeight;
+    const updateViewportScrollbarOffset = () => {
+      const scrollbarHalf = Math.max(0, (window.innerWidth - document.documentElement.clientWidth) / 2);
+      document.documentElement.style.setProperty('--viewport-scrollbar-half', `${scrollbarHalf}px`);
+    };
 
     const getTargetFromHash = (hash) => {
       if (!hash || hash === '#') return null;
@@ -138,6 +142,27 @@ const postJsonLd = {
       }))
       .filter((chapter) => chapter.link instanceof HTMLAnchorElement && chapter.target instanceof HTMLElement);
 
+    const isCompactChapterNav = () => window.matchMedia('(max-width: 920px)').matches;
+    const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const toPixelNumber = (value) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const getBlockerBottom = (blocker) => {
+      const rect = blocker.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return 0;
+
+      const style = getComputedStyle(blocker);
+      if (style.position === 'sticky') {
+        const stickyTop = toPixelNumber(style.top);
+        const stuckBottom = stickyTop + rect.height;
+        return rect.top > stickyTop ? stuckBottom : Math.max(rect.bottom, stuckBottom);
+      }
+
+      return rect.bottom;
+    };
+
     const getChapterOffset = (target) => {
       const rootFontSize = getRootFontSize();
       const viewportHeight = getViewportHeight();
@@ -151,16 +176,18 @@ const postJsonLd = {
       const proseRect = target.closest('.content-prose')?.getBoundingClientRect();
       const targetLeft = (proseRect?.left ?? targetRect.left) - rootFontSize * 0.75;
       const targetRight = (proseRect?.right ?? targetRect.right) + rootFontSize * 0.75;
-      const blockers = fixedHeader instanceof HTMLElement
-        ? Array.from(fixedHeader.children)
-        : [];
+      const compactChapterNav = document.querySelector('.article-toc');
+      const blockers = [
+        ...(fixedHeader instanceof HTMLElement ? Array.from(fixedHeader.children) : []),
+        ...(isCompactChapterNav() && compactChapterNav instanceof HTMLElement ? [compactChapterNav] : []),
+      ];
 
       const blockingBottom = blockers.reduce((bottom, blocker) => {
         if (!(blocker instanceof HTMLElement)) return bottom;
         const rect = blocker.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return bottom;
         const overlapsTarget = rect.right > targetLeft && rect.left < targetRight;
-        return overlapsTarget ? Math.max(bottom, rect.bottom) : bottom;
+        return overlapsTarget ? Math.max(bottom, getBlockerBottom(blocker)) : bottom;
       }, 0);
 
       if (blockingBottom > 0) {
@@ -177,14 +204,24 @@ const postJsonLd = {
     const setActiveChapter = (hash) => {
       if (hash === activeChapterHash) return;
       activeChapterHash = hash;
+      let activeLink = null;
 
       chapters.forEach(({ link }) => {
         if (link.hash === hash) {
           link.setAttribute('aria-current', 'location');
+          activeLink = link;
         } else {
           link.removeAttribute('aria-current');
         }
       });
+
+      if (activeLink && isCompactChapterNav()) {
+        activeLink.scrollIntoView({
+          block: 'nearest',
+          inline: 'center',
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        });
+      }
     };
 
     const updateActiveChapter = () => {
@@ -192,7 +229,7 @@ const postJsonLd = {
 
       const probeTarget = chapters.find(({ target }) => target.getBoundingClientRect().top >= 0)?.target ?? chapters[0].target;
       const probeY = window.scrollY + getChapterOffset(probeTarget) + 2;
-      let activeChapter = chapters[0];
+      let activeChapter = null;
 
       chapters.forEach((chapter) => {
         const chapterTop = window.scrollY + chapter.target.getBoundingClientRect().top;
@@ -201,7 +238,7 @@ const postJsonLd = {
         }
       });
 
-      setActiveChapter(activeChapter.link.hash);
+      setActiveChapter(activeChapter?.link.hash ?? '');
     };
 
     const scheduleActiveChapterUpdate = () => {
@@ -277,8 +314,17 @@ const postJsonLd = {
       scrollToChapter(window.location.hash, 'replace');
     });
     window.addEventListener('scroll', scheduleActiveChapterUpdate, { passive: true });
-    window.addEventListener('resize', scheduleActiveChapterUpdate, { passive: true });
-    window.addEventListener('orientationchange', () => window.setTimeout(scheduleActiveChapterUpdate, 120), { passive: true });
+    updateViewportScrollbarOffset();
+    window.addEventListener('resize', () => {
+      updateViewportScrollbarOffset();
+      scheduleActiveChapterUpdate();
+    }, { passive: true });
+    window.addEventListener('orientationchange', () => {
+      window.setTimeout(() => {
+        updateViewportScrollbarOffset();
+        scheduleActiveChapterUpdate();
+      }, 120);
+    }, { passive: true });
 
     const settleCurrentChapter = () => {
       if (!window.location.hash) return;
@@ -438,58 +484,131 @@ const postJsonLd = {
     }
 
     .article-toc {
-      position: relative;
-      top: auto;
-      margin-bottom: 34px;
+      position: sticky;
+      z-index: 35;
+      --mobile-toc-bridge: clamp(18px, 4dvh, 34px);
+      --mobile-toc-dock-overlap: clamp(0.75rem, 1.8dvh, 1rem);
+      top: calc(var(--anchor-offset) - var(--mobile-toc-dock-overlap));
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      isolation: isolate;
+      width: 100vw;
+      max-width: 100vw;
+      margin:
+        32px
+        calc(50% - 50vw - var(--viewport-scrollbar-half, 0px))
+        30px
+        calc(50% - 50vw + var(--viewport-scrollbar-half, 0px));
+      border: 1px solid rgba(232, 244, 247, 0.1);
+      border-right: 0;
       border-left: 0;
-      border-top: 1px solid rgba(240, 196, 108, 0.22);
-      padding: 18px 0 18px;
+      padding: 9px max(18px, calc((100vw - 760px) / 2));
+      background:
+        linear-gradient(90deg, rgba(5, 7, 10, 0.94), rgba(7, 20, 28, 0.84)),
+        rgba(5, 7, 10, 0.88);
+      box-shadow:
+        0 18px 70px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(240, 196, 108, 0.08);
+      backdrop-filter: blur(18px);
+    }
+
+    .article-toc::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      right: 0;
+      bottom: 100%;
+      left: 0;
+      height: var(--mobile-toc-bridge);
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(5, 7, 10, 0.98), rgba(5, 7, 10, 0.88)),
+        radial-gradient(circle at 20% 100%, rgba(82, 217, 255, 0.06), transparent 18rem);
+      box-shadow:
+        0 -16px 44px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(232, 244, 247, 0.055);
+      backdrop-filter: blur(18px);
+    }
+
+    .article-toc p {
+      margin: 0;
+      font-size: 0.62rem;
+      letter-spacing: 0.16em;
+      white-space: nowrap;
     }
 
     .article-toc nav {
       max-height: none;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0;
-      overflow: visible;
-      padding: 0;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+      padding: 2px 0 4px;
+      scrollbar-width: none;
+      scroll-snap-type: x proximity;
+    }
+
+    .article-toc nav::-webkit-scrollbar {
+      display: none;
     }
 
     .article-toc a {
-      min-height: 42px;
+      flex: 0 0 auto;
+      min-height: 38px;
+      max-width: min(68vw, 300px);
       display: flex;
       align-items: center;
-      border-bottom: 1px solid rgba(232, 244, 247, 0.08);
-      font-size: 0.94rem;
+      overflow: hidden;
+      padding: 0 12px;
+      border: 1px solid rgba(232, 244, 247, 0.1);
+      border-radius: 999px;
+      background: rgba(5, 7, 10, 0.36);
+      font-size: 0.82rem;
+      line-height: 1;
+      scroll-snap-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .article-toc a:hover,
+    .article-toc a:focus-visible {
+      transform: none;
     }
 
     .article-toc a[aria-current="location"] {
-      background:
-        radial-gradient(circle at 0 50%, rgba(240, 196, 108, 0.16), transparent 10rem),
-        rgba(240, 196, 108, 0.035);
+      border-color: rgba(240, 196, 108, 0.32);
+      background: rgba(240, 196, 108, 0.045);
+      transform: none;
     }
 
     .article-toc a[aria-current="location"]::after {
-      left: 0;
-      top: 8px;
-      bottom: 8px;
+      top: auto;
+      right: 14px;
+      bottom: 7px;
+      left: 14px;
+      width: auto;
+      height: 1px;
     }
 
     .article-toc a.depth-3 {
-      padding-left: 18px;
-      font-size: 0.86rem;
+      padding-left: 12px;
+      font-size: 0.78rem;
     }
 
     .article-toc a.depth-3::before {
       content: "";
-      width: 12px;
+      width: 10px;
       height: 1px;
-      margin-right: 10px;
+      margin-right: 8px;
+      flex: 0 0 auto;
       background: rgba(82, 217, 255, 0.28);
     }
 
     .article-toc a:last-child {
-      border-bottom: 0;
+      margin-right: max(18px, env(safe-area-inset-right));
     }
   }
 </style>

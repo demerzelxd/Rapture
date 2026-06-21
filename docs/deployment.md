@@ -94,7 +94,7 @@ Supabase 目前被刻意排除在必需依赖之外。只有当网站未来需�
 - `X-Frame-Options: DENY`
 - `Permissions-Policy` 禁用 camera、microphone、geolocation、payment 和 USB access
 
-目前没有设置 Content Security Policy。站点使用了 Astro inline scripts、Google Fonts、远程图片和 AquaInkGL WebGL 效果；仓促添加 CSP 很容易过严并破坏视觉体验。之后如果要加 CSP，应先覆盖测试首页、Studio、相册查看器和远程图片源。
+目前没有设置 Content Security Policy。站点使用了 Astro inline scripts、Google Fonts、远程图片和 AquaInkGL WebGL 效果；仓促添加 CSP 很容易过严并破坏视觉体验。之后如果要加 CSP，应先覆盖测试首页、相册查看器、远程图片源，以及尚未删除的历史 `/studio/` 页面。
 
 ## 部署前检查清单
 

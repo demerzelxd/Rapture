@@ -1,6 +1,6 @@
 # Rapture
 
-Rapture 是一个基于 Astro 的静态个人主页，用来承载写作和摄影。首页以 WebGL 油墨效果作为第一印象，内容层保持可维护：MDX 博文、静态相册、RSS、JSON Feed、OpenSearch、站点地图、`robots.txt`、公开内容索引，以及一个隐藏的本地写作工作台。
+Rapture 是一个基于 Astro 的静态个人主页，用来承载写作和摄影。首页以 WebGL 油墨效果作为第一印象，内容层保持可维护：MDX 博文、静态相册、RSS、JSON Feed、OpenSearch、站点地图、`robots.txt`、公开内容索引，以及基于 Obsidian/FNS/Git 的低摩擦内容工作流。
 
 ## 技术栈
 
@@ -9,6 +9,7 @@ Rapture 是一个基于 Astro 的静态个人主页，用来承载写作和摄�
 - 不依赖数据库或自建服务器
 - 适合部署到 Vercel 免费额度
 - 本地内容工具：创建博文、创建照片条目、导入 Obsidian、批量导入照片
+- Obsidian + fast-note-sync-service 内容工作台
 - Web App Manifest 和移动端主屏元数据
 - 写作与相册共用的 JSON Feed
 - OpenSearch，让浏览器可以发现站内搜索
@@ -128,17 +129,7 @@ npm run import:photos -- -- --from public/photos --location Shanghai --tone "qui
 
 这些命令默认生成草稿。只有加上 `--publish`，条目才会公开出现在路由、列表、feed 和 sitemap 里。
 
-完整写作流程见 [docs/content-workflow.md](docs/content-workflow.md)。
-
-## 浏览器写作工作台
-
-隐藏的浏览器写作界面位于：
-
-```text
-/studio/
-```
-
-它会生成和命令行工具一致的 MDX frontmatter，可以复制或下载文件。这个页面不会出现在公开导航里，并且带有 `noindex`。
+完整内容流程见 [docs/content-workflow.md](docs/content-workflow.md)。如果你想把 Obsidian 作为博客、文章图片和 Gallery 摄影的统一工作台，直接看 [docs/obsidian-workbench.md](docs/obsidian-workbench.md)。
 
 ## 部署
 
