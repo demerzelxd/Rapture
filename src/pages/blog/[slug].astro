@@ -74,7 +74,7 @@ const postJsonLd = {
           <p>Chapters</p>
           <nav>
             {chapterHeadings.map((heading) => (
-              <a class={`depth-${heading.depth}`} href={`#${heading.slug}`}>{heading.text}</a>
+              <a class={`depth-${heading.depth}`} href={`#${heading.slug}`} data-target={heading.slug}>{heading.text}</a>
             ))}
           </nav>
         </aside>
@@ -111,17 +111,46 @@ const postJsonLd = {
   <script is:inline src="/scripts/code-blocks.js" defer></script>
   <script is:inline>
     const fixedHeader = document.querySelector('.site-header');
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const tocLinks = Array.from(document.querySelectorAll('.article-toc a[href^="#"]'));
 
     if ('scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
 
+    const getRootFontSize = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const getViewportHeight = () => window.visualViewport?.height ?? window.innerHeight;
+
+    const getTargetFromHash = (hash) => {
+      if (!hash || hash === '#') return null;
+      try {
+        return document.getElementById(decodeURIComponent(hash.slice(1)));
+      } catch {
+        return null;
+      }
+    };
+
+    const chapters = tocLinks
+      .map((link) => ({
+        link,
+        target: link instanceof HTMLAnchorElement
+          ? document.getElementById(link.dataset.target ?? decodeURIComponent(link.hash.slice(1)))
+          : null,
+      }))
+      .filter((chapter) => chapter.link instanceof HTMLAnchorElement && chapter.target instanceof HTMLElement);
+
     const getChapterOffset = (target) => {
-      const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const rootFontSize = getRootFontSize();
+      const viewportHeight = getViewportHeight();
+      const readingOffset = Math.ceil(Math.max(rootFontSize * 1.25, Math.min(viewportHeight * 0.028, rootFontSize * 2)));
+
+      if (!window.matchMedia('(max-width: 920px)').matches) {
+        return readingOffset;
+      }
+
       const targetRect = target.getBoundingClientRect();
-      const targetLeft = targetRect.left - rootFontSize;
-      const targetRight = targetRect.right + rootFontSize;
+      const proseRect = target.closest('.content-prose')?.getBoundingClientRect();
+      const targetLeft = (proseRect?.left ?? targetRect.left) - rootFontSize * 0.75;
+      const targetRight = (proseRect?.right ?? targetRect.right) + rootFontSize * 0.75;
       const blockers = fixedHeader instanceof HTMLElement
         ? Array.from(fixedHeader.children)
         : [];
@@ -129,23 +158,83 @@ const postJsonLd = {
       const blockingBottom = blockers.reduce((bottom, blocker) => {
         if (!(blocker instanceof HTMLElement)) return bottom;
         const rect = blocker.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return bottom;
         const overlapsTarget = rect.right > targetLeft && rect.left < targetRight;
         return overlapsTarget ? Math.max(bottom, rect.bottom) : bottom;
       }, 0);
 
       if (blockingBottom > 0) {
-        return Math.ceil(blockingBottom + Math.max(2, rootFontSize * 0.125));
+        const breathingRoom = Math.max(rootFontSize * 0.5, Math.min(viewportHeight * 0.018, rootFontSize));
+        return Math.ceil(blockingBottom + breathingRoom);
       }
 
-      return Math.ceil(Math.max(rootFontSize * 4.25, Math.min(window.innerHeight * 0.065, rootFontSize * 4.8)));
+      return readingOffset;
+    };
+
+    let activeChapterHash = '';
+    let activeUpdateFrame = 0;
+
+    const setActiveChapter = (hash) => {
+      if (hash === activeChapterHash) return;
+      activeChapterHash = hash;
+
+      chapters.forEach(({ link }) => {
+        if (link.hash === hash) {
+          link.setAttribute('aria-current', 'location');
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      });
+    };
+
+    const updateActiveChapter = () => {
+      if (chapters.length === 0) return;
+
+      const probeTarget = chapters.find(({ target }) => target.getBoundingClientRect().top >= 0)?.target ?? chapters[0].target;
+      const probeY = window.scrollY + getChapterOffset(probeTarget) + 2;
+      let activeChapter = chapters[0];
+
+      chapters.forEach((chapter) => {
+        const chapterTop = window.scrollY + chapter.target.getBoundingClientRect().top;
+        if (chapterTop <= probeY) {
+          activeChapter = chapter;
+        }
+      });
+
+      setActiveChapter(activeChapter.link.hash);
+    };
+
+    const scheduleActiveChapterUpdate = () => {
+      if (activeUpdateFrame) return;
+      activeUpdateFrame = requestAnimationFrame(() => {
+        activeUpdateFrame = 0;
+        updateActiveChapter();
+      });
+    };
+
+    const getChapterTop = (target) => {
+      const targetTop = window.scrollY + target.getBoundingClientRect().top;
+      return Math.max(0, Math.round(targetTop - getChapterOffset(target)));
+    };
+
+    const jumpToTop = (top) => {
+      const root = document.documentElement;
+      const previousBehavior = root.style.scrollBehavior;
+      root.style.scrollBehavior = 'auto';
+      window.scrollTo({ top, behavior: 'auto' });
+      root.style.scrollBehavior = previousBehavior;
+    };
+
+    const alignChapter = (target) => {
+      jumpToTop(getChapterTop(target));
+      scheduleActiveChapterUpdate();
     };
 
     const scrollToChapter = (hash, mode = 'push') => {
-      if (!hash || hash === '#') return;
-      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      const target = getTargetFromHash(hash);
       if (!target) return;
+      setActiveChapter(hash);
 
-      const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - getChapterOffset(target));
       if (mode === 'replace') {
         window.history.replaceState({}, '', hash);
       } else if (mode === 'push') {
@@ -153,11 +242,17 @@ const postJsonLd = {
       }
 
       requestAnimationFrame(() => {
-        window.scrollTo({
-          top,
-          behavior: prefersReducedMotion.matches ? 'auto' : 'smooth',
-        });
+        alignChapter(target);
+        window.setTimeout(() => alignChapter(target), 80);
+        window.setTimeout(() => alignChapter(target), 220);
+        window.setTimeout(() => alignChapter(target), 520);
       });
+    };
+
+    const settleInitialChapter = (hash) => {
+      const target = getTargetFromHash(hash);
+      if (!target) return;
+      alignChapter(target);
     };
 
     document.addEventListener(
@@ -169,10 +264,11 @@ const postJsonLd = {
           : target instanceof Node
             ? target.parentElement
             : null;
-        const link = targetElement?.closest('.article-toc a[href^="#"]') ?? null;
+        const link = targetElement?.closest('.article-toc a[data-target]') ?? null;
         if (!(link instanceof HTMLAnchorElement)) return;
         event.preventDefault();
-        scrollToChapter(link.hash);
+        event.stopPropagation();
+        scrollToChapter(`#${link.dataset.target ?? link.hash.slice(1)}`);
       },
       true
     );
@@ -180,16 +276,44 @@ const postJsonLd = {
     window.addEventListener('hashchange', () => {
       scrollToChapter(window.location.hash, 'replace');
     });
+    window.addEventListener('scroll', scheduleActiveChapterUpdate, { passive: true });
+    window.addEventListener('resize', scheduleActiveChapterUpdate, { passive: true });
+    window.addEventListener('orientationchange', () => window.setTimeout(scheduleActiveChapterUpdate, 120), { passive: true });
 
-    if (window.location.hash) {
-      requestAnimationFrame(() => scrollToChapter(window.location.hash, 'replace'));
-    }
+    const settleCurrentChapter = () => {
+      if (!window.location.hash) return;
+      scrollToChapter(window.location.hash, 'replace');
+      settleInitialChapter(window.location.hash);
+      scheduleActiveChapterUpdate();
+    };
+
+    scheduleActiveChapterUpdate();
+    requestAnimationFrame(settleCurrentChapter);
+    window.setTimeout(settleCurrentChapter, 0);
+    window.setTimeout(settleCurrentChapter, 120);
+    window.setTimeout(settleCurrentChapter, 360);
+    window.setTimeout(settleCurrentChapter, 720);
+    window.setTimeout(settleCurrentChapter, 1200);
+    window.addEventListener('load', settleCurrentChapter, { once: true });
+    document.fonts?.ready.then(settleCurrentChapter);
   </script>
 </BaseLayout>
 
 <style>
   .article-main {
     display: block;
+  }
+
+  .article-main::after {
+    content: "";
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 30px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(5, 7, 10, 0.98), rgba(5, 7, 10, 0.72) 58%, rgba(5, 7, 10, 0));
   }
 
   .back-link {
@@ -257,6 +381,8 @@ const postJsonLd = {
   }
 
   .article-toc a {
+    position: relative;
+    display: block;
     color: rgba(232, 244, 247, 0.58);
     font-size: 0.9rem;
     line-height: 1.35;
@@ -276,6 +402,23 @@ const postJsonLd = {
     color: var(--brass-soft);
     transform: translateX(3px);
     outline: none;
+  }
+
+  .article-toc a[aria-current="location"] {
+    color: var(--brass-soft);
+    text-shadow: 0 0 18px rgba(240, 196, 108, 0.28);
+    transform: translateX(3px);
+  }
+
+  .article-toc a[aria-current="location"]::after {
+    content: "";
+    position: absolute;
+    top: 0.18em;
+    bottom: 0.18em;
+    left: -19px;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(240, 196, 108, 0.96), transparent);
+    box-shadow: 0 0 16px rgba(240, 196, 108, 0.42);
   }
 
   .article-cover {
@@ -318,6 +461,18 @@ const postJsonLd = {
       align-items: center;
       border-bottom: 1px solid rgba(232, 244, 247, 0.08);
       font-size: 0.94rem;
+    }
+
+    .article-toc a[aria-current="location"] {
+      background:
+        radial-gradient(circle at 0 50%, rgba(240, 196, 108, 0.16), transparent 10rem),
+        rgba(240, 196, 108, 0.035);
+    }
+
+    .article-toc a[aria-current="location"]::after {
+      left: 0;
+      top: 8px;
+      bottom: 8px;
     }
 
     .article-toc a.depth-3 {

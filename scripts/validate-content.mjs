@@ -430,7 +430,7 @@ function requireSourceKey(filePath, value) {
 function collectMdx(directory) {
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.mdx'))
+    .filter((entry) => entry.isFile() && /\.mdx?$/i.test(entry.name))
     .map((entry) => path.join(directory, entry.name))
     .sort((a, b) => a.localeCompare(b));
 }
@@ -438,7 +438,7 @@ function collectMdx(directory) {
 function validateUniqueSlugs(files, collectionName) {
   const seen = new Set();
   for (const filePath of files) {
-    const slug = path.basename(filePath, '.mdx');
+    const slug = path.basename(filePath, path.extname(filePath));
     if (seen.has(slug)) {
       addError(filePath, `duplicate ${collectionName} slug: ${slug}`);
     }

@@ -19,10 +19,13 @@
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --anchor-offset: var(--measured-header-offset, 118px);
+  --chapter-anchor-offset: clamp(1.25rem, 2.8dvh, 2rem);
+  --chapter-native-gap: clamp(4.75rem, 8dvh, 6rem);
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
@@ -81,6 +84,7 @@ body::selection {
 a {
   color: inherit;
   text-decoration: none;
+  touch-action: manipulation;
 }
 
 img {
@@ -92,6 +96,21 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+button,
+[role="button"],
+summary,
+label,
+[tabindex] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"],
+summary,
+label {
+  touch-action: manipulation;
 }
 
 .site-shell {
@@ -573,7 +592,7 @@ textarea {
   margin-top: 2.2em;
   color: white;
   font-family: var(--font-display);
-  scroll-margin-top: var(--anchor-offset);
+  scroll-margin-top: calc(var(--chapter-anchor-offset) - var(--anchor-offset) - var(--chapter-native-gap));
 }
 
 .content-prose h2 {
@@ -844,6 +863,8 @@ textarea {
 @media (max-width: 720px) {
   :root {
     --anchor-offset: var(--measured-header-offset, 138px);
+    --chapter-anchor-offset: var(--anchor-offset);
+    --chapter-native-gap: 0px;
   }
 
   .site-header {
@@ -885,9 +906,12 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .content-prose h2,
-  .content-prose h3 {
-    scroll-margin-top: var(--anchor-offset);
+}
+
+@media (min-width: 721px) and (max-width: 920px) {
+  :root {
+    --chapter-anchor-offset: var(--anchor-offset);
+    --chapter-native-gap: 0px;
   }
 }
 

@@ -23,6 +23,8 @@ try {
     importPosts(args);
   } else if (command === 'import-photos') {
     importPhotos(args);
+  } else if (command === 'normalize-posts') {
+    normalizePosts();
   } else {
     printUsage();
     process.exit(command ? 1 : 0);
@@ -179,6 +181,83 @@ function importPosts(options) {
   }
 
   console.log(`Obsidian folder import complete: ${imported} imported, ${skipped} skipped`);
+}
+
+function normalizePosts() {
+  ensureDirectory(blogDir);
+
+  const files = collectMarkdownFiles(blogDir);
+  let changed = 0;
+  let unchanged = 0;
+
+  for (const filePath of files) {
+    const original = readFileSync(filePath, 'utf8');
+    const normalized = normalizePostContent(filePath, original);
+
+    if (normalized === original) {
+      unchanged += 1;
+      continue;
+    }
+
+    writeFileSync(filePath, normalized, 'utf8');
+    changed += 1;
+    report(filePath, 'Obsidian post normalized');
+  }
+
+  console.log(`post normalization complete: ${changed} updated, ${unchanged} unchanged`);
+}
+
+function normalizePostContent(filePath, text) {
+  const parsed = splitFrontmatter(text);
+  const data = parsed.data;
+
+  if (hasValidPostFrontmatter(data)) {
+    return text;
+  }
+
+  const body = parsed.body.trim();
+  const title = cleanText(data.title) ?? firstHeading(body) ?? titleFromFile(filePath);
+  const existingDescription = cleanText(data.description);
+  const description = existingDescription && !isTableLikeText(existingDescription)
+    ? existingDescription
+    : firstParagraph(body) ?? title;
+  const tags = list(data.tags, ['note']);
+  const date = normalizeDate(data.date, fileDate(filePath));
+  const updated = data.updated ? normalizeDate(data.updated) : undefined;
+  const draft = normalizeBoolean(data.draft, false);
+  const cover = cleanText(data.cover);
+  const coverAlt = cleanText(data.coverAlt);
+  const sourceKeyValue = cleanText(data.sourceKey);
+
+  return [
+    '---',
+    line('title', title),
+    line('description', description),
+    dateLine('date', date),
+    updated ? dateLine('updated', updated) : undefined,
+    arrayLine('tags', tags),
+    cover ? line('cover', cover) : undefined,
+    coverAlt ? line('coverAlt', coverAlt) : undefined,
+    line('draft', draft),
+    sourceKeyValue ? line('sourceKey', sourceKeyValue) : undefined,
+    '---',
+    '',
+    body,
+    '',
+  ].filter((lineValue) => lineValue !== undefined).join('\n');
+}
+
+function hasValidPostFrontmatter(data) {
+  const description = cleanText(data.description);
+
+  return Boolean(
+    cleanText(data.title) &&
+    description &&
+    !isTableLikeText(description) &&
+    normalizeDate(data.date) &&
+    Array.isArray(list(data.tags, [])) &&
+    list(data.tags, []).length > 0,
+  );
 }
 
 function writeImportedPost(sourcePath, options, metadata = {}) {
@@ -342,13 +421,66 @@ function firstParagraph(body) {
   return body
     .split(/\n{2,}/)
     .map((block) => block.trim())
-    .find((block) => block && !block.startsWith('#') && !block.startsWith('```'))
+    .find((block) => block && !block.startsWith('#') && !block.startsWith('```') && !isMarkdownTable(block) && !isTableLikeText(block))
     ?.replace(/\s+/g, ' ')
     .slice(0, 180);
 }
 
+function isMarkdownTable(block) {
+  const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
+  return lines.length >= 2 && lines.every((line) => line.startsWith('|') && line.endsWith('|'));
+}
+
+function isTableLikeText(value) {
+  const text = cleanText(value);
+  if (!text) return false;
+
+  const normalized = text.replace(/^["']|["']$/g, '').trim();
+  const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+
+  const pipeLines = lines.filter((line) => line.startsWith('|') || line.includes(' | '));
+  return normalized.startsWith('|') || normalized.split('|').length > 4 || pipeLines.length / lines.length >= 0.5;
+}
+
 function titleFromFile(filePath) {
   return path.basename(filePath, path.extname(filePath)).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function cleanText(value) {
+  if (typeof value !== 'string') return undefined;
+  const text = value.trim();
+  return text || undefined;
+}
+
+function normalizeBoolean(value, fallback) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function normalizeDate(value, fallback) {
+  const text = cleanText(value);
+  if (!text) return fallback;
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.valueOf())) return fallback;
+  return formatDate(parsed);
+}
+
+function fileDate(filePath) {
+  return formatDate(statSync(filePath).mtime);
+}
+
+function formatDate(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function resolveDimensions(src, widthInput, heightInput) {
@@ -590,10 +722,12 @@ Usage:
   npm run import:obsidian -- -- --from "C:/vault/note.md" --tags "note,essay" [--publish]
   npm run import:obsidian:folder -- -- --from "C:/vault/Rapture" --tags "note,essay" [--publish]
   npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue" [--publish]
+  npm run normalize:obsidian
 
 Notes:
   - Posts are drafts by default. Add --publish when the entry is ready.
   - Batch Obsidian imports scan nested .md and .mdx files and skip previously imported source files unless --force is set.
+  - Obsidian normalization fills missing blog frontmatter before validation and builds.
   - Local photo dimensions are inferred for PNG, JPG, JPEG, and WebP files under public/.
   - Batch photo import skips files whose public src already exists in src/content/photos/.
   - Remote photo URLs need --width and --height.`);
