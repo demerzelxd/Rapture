@@ -200,17 +200,45 @@ const postJsonLd = {
     let activeChapterHash = '';
     let activeUpdateFrame = 0;
 
-    const revealChapterLink = (link) => {
-      if (!link || !isCompactChapterNav()) return;
-      link.scrollIntoView({
-        block: 'nearest',
-        inline: 'center',
-        behavior: 'auto',
-      });
+    const revealChapterLink = (link, options = {}) => {
+      if (!(link instanceof HTMLElement) || !isCompactChapterNav()) return;
+      const nav = link.closest('.article-toc nav');
+      if (!(nav instanceof HTMLElement)) return;
+
+      const rootFontSize = getRootFontSize();
+      const navRect = nav.getBoundingClientRect();
+      const linkRect = link.getBoundingClientRect();
+      const inset = Math.max(12, rootFontSize * 0.75);
+      const maxScrollLeft = Math.max(0, nav.scrollWidth - nav.clientWidth);
+      const currentLeft = nav.scrollLeft;
+      const linkLeft = linkRect.left - navRect.left;
+      const linkRight = linkRect.right - navRect.left;
+      const shouldCenter = options.mode === 'center';
+      let nextLeft = currentLeft;
+
+      if (shouldCenter) {
+        nextLeft = currentLeft + linkLeft - (nav.clientWidth - linkRect.width) / 2;
+      } else if (linkLeft < inset) {
+        nextLeft = currentLeft + linkLeft - inset;
+      } else if (linkRight > nav.clientWidth - inset) {
+        nextLeft = currentLeft + linkRight - nav.clientWidth + inset;
+      } else {
+        return;
+      }
+
+      nextLeft = Math.max(0, Math.min(maxScrollLeft, Math.round(nextLeft)));
+      if (Math.abs(currentLeft - nextLeft) <= 1) return;
+      nav.scrollTo({ left: nextLeft, behavior: 'auto' });
     };
 
     const setActiveChapter = (hash, options = {}) => {
-      if (hash === activeChapterHash) return;
+      if (hash === activeChapterHash) {
+        if (options.reveal) {
+          const currentLink = chapters.find(({ link }) => link.hash === hash)?.link;
+          revealChapterLink(currentLink, { mode: options.reveal });
+        }
+        return;
+      }
       activeChapterHash = hash;
       let activeLink = null;
 
@@ -223,8 +251,8 @@ const postJsonLd = {
         }
       });
 
-      if (options.reveal) {
-        revealChapterLink(activeLink);
+      if (options.reveal !== false) {
+        revealChapterLink(activeLink, { mode: options.reveal });
       }
     };
 
@@ -274,7 +302,7 @@ const postJsonLd = {
     const scrollToChapter = (hash, mode = 'push') => {
       const target = getTargetFromHash(hash);
       if (!target) return;
-      setActiveChapter(hash, { reveal: true });
+      setActiveChapter(hash, { reveal: 'center' });
 
       if (mode === 'replace') {
         window.history.replaceState({}, '', hash);
