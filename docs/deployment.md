@@ -1,123 +1,123 @@
-# Deployment
+# 部署
 
-Rapture is designed to stay free-first: static Astro output, Vercel hosting, no server process, and no required database.
+Rapture 的架构目标是优先免费：Astro 静态输出、Vercel 托管、无服务器进程、无必需数据库。
 
-## Recommended Path
+## 推荐路径
 
-Use Vercel for hosting and GitHub as the source of truth.
+使用 Vercel 托管，GitHub 作为代码和内容的唯一事实来源。
 
-1. Create a GitHub repository and push the project.
-2. In Vercel, import the GitHub repository.
-3. Use the checked-in `vercel.json` settings:
+1. 创建 GitHub 仓库并推送项目。
+2. 在 Vercel 中导入这个 GitHub 仓库。
+3. 使用仓库里的 `vercel.json` 设置：
    - Framework preset: Astro
    - Build command: `npm run build`
    - Output directory: `dist`
    - Install command: `npm ci`
-4. Add a production environment variable:
+4. 添加生产环境变量：
 
 ```text
 PUBLIC_SITE_URL=https://your-domain.com
 ```
 
-5. Connect the custom domain in Vercel.
-6. Trigger a production deployment.
+5. 在 Vercel 中绑定自定义域名。
+6. 触发一次生产部署。
 
-## Why `PUBLIC_SITE_URL` Matters
+## 为什么 `PUBLIC_SITE_URL` 很重要
 
-`PUBLIC_SITE_URL` is used by Astro and the site metadata layer to generate canonical URLs for:
+`PUBLIC_SITE_URL` 会被 Astro 和站点元数据层用来生成以下规范 URL：
 
 - HTML canonical links
 - Open Graph URLs
-- the default `/og-image.png` social preview
-- `/content.json` entry URLs
-- `/feed.json` feed URLs
-- `/opensearch.xml` search provider URLs
-- RSS links
+- 默认社交预览图 `/og-image.png`
+- `/content.json` 条目 URL
+- `/feed.json` feed URL
+- `/opensearch.xml` 搜索提供器 URL
+- RSS 链接
 - `/sitemap.xml`
 - `/robots.txt`
 
-If it is not set, hosted Vercel builds use `VERCEL_URL`. Local builds use `https://rapture.example.com` as a harmless placeholder.
+如果没有设置它，Vercel 托管构建会使用 `VERCEL_URL`。本地构建会使用 `https://rapture.example.com` 作为无害占位域名。
 
-## Publishing Flow
+## 发布流程
 
-For routine updates:
+日常更新：
 
-1. Add or import content locally.
-2. Run `npm run check`.
-3. Commit the content and code changes.
-4. Push to GitHub.
-5. GitHub Actions runs the same quality gate.
-6. Vercel rebuilds and publishes the static site.
+1. 在本地新增或导入内容。
+2. 运行 `npm run check`。
+3. 提交内容和代码改动。
+4. 推送到 GitHub。
+5. GitHub Actions 运行同一个质量门。
+6. Vercel 重新构建并发布静态站点。
 
-Draft content with `draft: true` is excluded from public lists, generated detail routes, and the sitemap.
+带有 `draft: true` 的草稿内容不会进入公开列表、详情路由和 sitemap。
 
-For the first launch, and whenever the canonical domain changes, run the stricter launch gate locally:
+首次上线，以及规范域名发生变化时，在本地运行更严格的上线检查：
 
 ```bash
 PUBLIC_SITE_URL=https://your-domain.com npm run check:launch
 ```
 
-On Windows PowerShell:
+Windows PowerShell 写法：
 
 ```powershell
 $env:PUBLIC_SITE_URL = "https://your-domain.com"; npm run check:launch
 ```
 
-This command checks remote image dimensions, builds with the configured origin, validates generated feeds and discovery files, and fails if placeholder hosts remain in `dist/`.
+这个命令会检查远程图片尺寸，使用配置的 origin 构建，验证生成的 feed 和发现文件，并在 `dist/` 中残留占位域名时失败。
 
-## Cost Boundaries
+## 成本边界
 
-The current architecture has no required paid services:
+当前架构不需要任何付费服务：
 
-- Hosting: Vercel static deployment
-- Writing: MDX files in the repository
-- Gallery: local files under `public/photos/` or remote image URLs
-- Publishing: Git push triggers rebuild
+- 托管：Vercel 静态部署
+- 写作：仓库中的 MDX 文件
+- 相册：`public/photos/` 下的本地文件，或远程图片 URL
+- 发布：Git push 触发重新构建
 
-Supabase is intentionally not required right now. It can be added later only if the site needs private auth, comments, likes, or a public API.
+Supabase 目前被刻意排除在必需依赖之外。只有当网站未来需要私有登录、评论、点赞或公开 API 时，再考虑引入。
 
-## Vercel Config
+## Vercel 配置
 
-The repository includes `vercel.json` so production deploys do not depend on manually remembered settings.
+仓库包含 `vercel.json`，这样生产部署不依赖手动记忆设置。
 
-It declares:
+它声明了：
 
 - `framework: astro`
 - `installCommand: npm ci`
 - `buildCommand: npm run build`
 - `outputDirectory: dist`
 
-It also adds low-risk security headers to all routes:
+它也给所有路由添加了低风险安全响应头：
 
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `X-Frame-Options: DENY`
-- `Permissions-Policy` disabling camera, microphone, geolocation, payment, and USB access.
+- `Permissions-Policy` 禁用 camera、microphone、geolocation、payment 和 USB access
 
-Content Security Policy is intentionally not set yet. The current site uses inline Astro scripts, Google Fonts, remote images, and the AquaInkGL WebGL effect; a rushed CSP would be easy to make too strict and break the visual experience. Add CSP later only after testing it against the homepage, Studio, gallery viewer, and remote image hosts.
+目前没有设置 Content Security Policy。站点使用了 Astro inline scripts、Google Fonts、远程图片和 AquaInkGL WebGL 效果；仓促添加 CSP 很容易过严并破坏视觉体验。之后如果要加 CSP，应先覆盖测试首页、Studio、相册查看器和远程图片源。
 
-## Pre-Deploy Checklist
+## 部署前检查清单
 
-- `npm install` has completed.
-- `npm run check` passes, including post-build validation for generated feeds, sitemap, robots.txt, OpenSearch, metadata discovery links, accessibility anchors, image alt text, and internal links.
-- `PUBLIC_SITE_URL=https://your-domain.com npm run check:launch` passes with the real production domain.
-- GitHub Actions is green for the pushed branch.
-- Run `npm run validate:content:remote` manually before large gallery updates that rely on remote image URLs.
-- `PUBLIC_SITE_URL` is set in Vercel for production.
-- Draft content that should remain private has `draft: true`.
-- Public images have useful `alt` text.
-- `/og-image.png` still matches the intended public identity.
-- The custom domain points to the Vercel project.
+- `npm install` 已完成。
+- `npm run check` 通过，包括构建后对 feed、sitemap、`robots.txt`、OpenSearch、元数据发现链接、可访问性锚点、图片 `alt` 文本和内部链接的校验。
+- 使用真实生产域名运行 `PUBLIC_SITE_URL=https://your-domain.com npm run check:launch` 并通过。
+- 推送分支的 GitHub Actions 为绿色。
+- 大量使用远程图片 URL 的相册更新前，手动运行 `npm run validate:content:remote`。
+- Vercel 生产环境设置了 `PUBLIC_SITE_URL`。
+- 不应公开的草稿内容保留 `draft: true`。
+- 公开图片都有有意义的 `alt` 文本。
+- `/og-image.png` 仍符合当前公开身份。
+- 自定义域名已指向对应 Vercel 项目。
 
-## CI Gate
+## CI 质量门
 
-The repository includes `.github/workflows/ci.yml`.
+仓库包含 `.github/workflows/ci.yml`。
 
-It runs on pushes and pull requests with Node 22:
+它会在 push 和 pull request 时使用 Node 22 运行：
 
 ```bash
 npm ci
 npm run check
 ```
 
-The CI gate intentionally skips `npm run validate:content:remote`. Local and frontmatter checks should be deterministic; remote image hosts are better verified manually before a gallery-heavy publish.
+CI 有意不运行 `npm run validate:content:remote`。本地内容和 frontmatter 检查应该保持确定性；依赖远程图床的检查更适合在发布相册密集更新前手动执行。

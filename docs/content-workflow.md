@@ -1,160 +1,160 @@
-# Rapture content workflow
+# Rapture 内容工作流
 
-Rapture is a static Astro site. New writing and gallery entries are published by adding MDX files, then letting Vercel rebuild the site.
+Rapture 是一个静态 Astro 站点。新的文章和相册条目通过新增 MDX 文件发布，然后由 Vercel 重新构建静态页面。
 
-For the full hosting setup, see [deployment.md](deployment.md).
+完整托管配置见 [deployment.md](deployment.md)。
 
-## Deployment metadata
+## 部署元数据
 
-Set `PUBLIC_SITE_URL` in Vercel after connecting a domain, for example `https://your-domain.com`. If it is not set, the build falls back to Vercel's generated URL when `VERCEL_URL` is available.
+绑定域名后，在 Vercel 中设置 `PUBLIC_SITE_URL`，例如 `https://your-domain.com`。如果没有设置，Vercel 托管构建会在存在 `VERCEL_URL` 时回退到 Vercel 生成的地址。
 
-The static build generates:
+静态构建会生成：
 
-- `/content.json` for a machine-readable public index of writing and gallery entries.
-- `/feed.json` for a JSON Feed timeline of published writing and gallery updates.
-- `/opensearch.xml` for browser-level discovery of the public search page.
-- `/rss.xml` for the public writing feed.
-- `/sitemap.xml` for the homepage, writing, gallery, posts, and photo pages.
-- `/robots.txt` pointing crawlers at the sitemap.
+- `/content.json`：机器可读的公开内容索引，包含写作和相册条目。
+- `/feed.json`：JSON Feed 时间线，包含已发布的写作和相册更新。
+- `/opensearch.xml`：让浏览器发现公开搜索页。
+- `/rss.xml`：公开写作 RSS。
+- `/sitemap.xml`：首页、写作、相册、文章页和照片页。
+- `/robots.txt`：指向 sitemap，方便爬虫发现站点结构。
 
-`/content.json` includes canonical absolute URLs and only published entries. `/feed.json` follows the same draft filtering and keeps `/rss.xml` focused on writing only. `/opensearch.xml` points browsers at `/search/?q={searchTerms}` and does not require a server.
+`/content.json` 包含规范绝对 URL，并且只包含已发布条目。`/feed.json` 使用同样的草稿过滤规则，`/rss.xml` 则保持为只包含写作内容。`/opensearch.xml` 指向 `/search/?q={searchTerms}`，不需要服务器支持。
 
-## Writing
+## 写作
 
-For a browser-based drafting surface, open `/studio/`. It generates the same MDX format as the command-line helper and lets you copy or download the file.
+如果希望在浏览器里起草，打开 `/studio/`。它生成的 MDX 格式和命令行工具一致，可以复制或下载文件。
 
-Use the local helper for routine drafts:
-
-```bash
-npm run new:post -- -- --title "Post title" --description "One short sentence for cards and metadata." --tags "note,frontend"
-```
-
-Posts created this way are drafts by default. Add `--publish` when the entry is ready to appear on the public site:
+日常草稿建议使用本地 helper：
 
 ```bash
-npm run new:post -- -- --title "Post title" --description "One short sentence." --tags "note,frontend" --publish
+npm run new:post -- -- --title "文章标题" --description "一句用于卡片和元数据的摘要。" --tags "note,frontend"
 ```
 
-The command writes an `.mdx` file under `src/content/blog/` with the required frontmatter. You can then open that file in your editor and write normally.
+这样创建的文章默认是草稿。准备公开时加上 `--publish`：
 
-Manual format:
+```bash
+npm run new:post -- -- --title "文章标题" --description "一句摘要。" --tags "note,frontend" --publish
+```
 
-```mdx
+命令会在 `src/content/blog/` 下写入一个带必需 frontmatter 的 `.mdx` 文件。之后可以直接在编辑器里正常写 Markdown。
+
+手动格式如下：
+
+````mdx
 ---
-title: "Post title"
-description: "One short sentence for cards and metadata."
+title: "文章标题"
+description: "一句用于卡片和元数据的摘要。"
 date: 2026-06-20
 tags: ["note", "frontend"]
 cover: "https://example.com/photo.jpg"
-coverAlt: "Describe the cover image."
+coverAlt: "描述封面图片。"
 draft: false
 ---
 
-Write in Markdown here.
+在这里写 Markdown。
 
 ```ts
-console.log('code blocks are supported');
+console.log('支持代码块');
 ```
-```
+````
 
-Notes:
+说明：
 
-- `draft: true` keeps the post out of generated routes.
-- `draft: true` also keeps the post out of `/content.json`, `/feed.json`, `/rss.xml`, and `/sitemap.xml`.
-- `cover` and `coverAlt` are optional.
-- `##` and `###` headings are collected into the article chapter rail automatically.
-- Published articles link to the adjacent newer and older posts automatically.
-- Code blocks, links, blockquotes, tables, and images are styled by the article renderer.
+- `draft: true` 会让文章不生成公开路由。
+- `draft: true` 也会让文章不进入 `/content.json`、`/feed.json`、`/rss.xml` 和 `/sitemap.xml`。
+- `cover` 和 `coverAlt` 是可选字段。
+- `##` 和 `###` 标题会自动进入文章侧边章节导航。
+- 已发布文章会自动链接到相邻的新文章和旧文章。
+- 代码块、链接、引用、表格和图片都会由文章渲染器统一样式化。
 
-## Gallery
+## 相册
 
-For a browser-based drafting surface, open `/studio/` and switch to Gallery. It generates a photo MDX file with the same fields used by the static gallery.
+如果希望在浏览器里起草，打开 `/studio/` 并切换到 Gallery。它会生成和静态相册一致字段的照片 MDX 文件。
 
-Use the local helper for new photo entries:
+新增照片条目可以使用本地 helper：
 
 ```bash
-npm run new:photo -- -- --title "Photo title" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "Describe the photo."
+npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
 ```
 
-For local PNG and JPG files under `public/`, the helper reads `width` and `height` automatically. Remote URLs need explicit dimensions:
+对于 `public/` 下的本地 PNG 和 JPG 文件，helper 会自动读取 `width` 和 `height`。远程 URL 需要显式传入尺寸：
 
 ```bash
-npm run new:photo -- -- --title "Photo title" --src "https://example.com/photo.jpg" --width 1400 --height 933 --location Shanghai --tone "quiet blue"
+npm run new:photo -- -- --title "照片标题" --src "https://example.com/photo.jpg" --width 1400 --height 933 --location Shanghai --tone "quiet blue"
 ```
 
-Photo entries created by the helper are drafts by default. Add `--publish` when the frame is ready for the public gallery.
+helper 创建的照片条目默认是草稿。只有加上 `--publish`，这张照片才会进入公开相册。
 
-For a folder of local images, put them under `public/photos/` and import them in one pass:
+批量导入本地图片时，先把图片放到 `public/photos/`，再执行：
 
 ```bash
 npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue"
 ```
 
-The batch importer scans nested folders for PNG, JPG, JPEG, and WebP files, reads dimensions automatically, creates draft photo entries, and skips any image whose public `src` already exists in `src/content/photos/`. Add `--publish` only when the imported batch should immediately appear in the public gallery.
+批量导入器会扫描嵌套文件夹里的 PNG、JPG、JPEG 和 WebP 文件，自动读取尺寸，创建草稿照片条目，并跳过已经在 `src/content/photos/` 中存在同一公开 `src` 的图片。只有在整批照片都应立即公开时才加 `--publish`。
 
-Manual format:
+手动格式如下：
 
 ```mdx
 ---
-title: "Photo title"
+title: "照片标题"
 location: "Shanghai"
 date: 2026-06-20
 src: "https://example.com/photo.jpg"
 width: 1400
 height: 933
 tone: "quiet blue"
-alt: "Describe the photo."
+alt: "描述这张照片。"
 draft: false
 ---
 
-Optional short note for the photo detail page.
+这里可以写照片详情页的短注释。
 ```
 
-Notes:
+说明：
 
-- `src` can be a remote image URL. For local images, put them under `public/photos/` and use paths like `/photos/my-image.jpg`.
-- `draft: true` keeps the photo out of the gallery, detail routes, `/content.json`, `/feed.json`, and the sitemap.
-- `width` and `height` reserve layout space and keep the gallery stable while images load.
-- Photo detail pages link to adjacent frames based on the gallery date order.
+- `src` 可以是远程图片 URL。本地图片建议放在 `public/photos/` 下，并使用 `/photos/my-image.jpg` 这样的路径。
+- `draft: true` 会让照片不进入相册、详情路由、`/content.json`、`/feed.json` 和 sitemap。
+- `width` 和 `height` 用来预留布局空间，避免图片加载时相册抖动。
+- 照片详情页会根据相册日期顺序自动链接到相邻照片。
 
 ## Obsidian
 
-The low-friction path is to keep an Obsidian vault folder for drafts, then import finished or nearly finished notes into the site:
+低摩擦路径是保留一个 Obsidian vault 文件夹作为草稿箱，然后把完成或接近完成的笔记导入站点：
 
 ```bash
 npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay"
 ```
 
-Imported posts are drafts by default. Add `--publish` to publish immediately:
+导入文章默认是草稿。需要立即发布时加 `--publish`：
 
 ```bash
 npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay" --publish
 ```
 
-The importer preserves the note body, derives the title from frontmatter, the first `# Heading`, or the filename, and fills missing Rapture frontmatter. After pushing to GitHub, Vercel rebuilds and publishes the static pages.
+导入器会保留笔记正文，从 frontmatter、第一个 `# Heading` 或文件名中推导标题，并补齐 Rapture 需要的 frontmatter。推送到 GitHub 后，Vercel 会重新构建并发布静态页面。
 
-For a one-command inbox, keep publishable notes in a dedicated vault folder and import the whole folder:
+如果想做成一个一键收件箱，可以把可发布笔记放在专门的 vault 文件夹里，然后导入整个文件夹：
 
 ```bash
 npm run import:obsidian:folder -- -- --from "C:/path/to/vault/Rapture" --tags "note,essay"
 ```
 
-The folder importer scans nested `.md` and `.mdx` files. It creates draft posts by default, preserves each note body, and skips source files that were already imported by a previous folder run. It does this with a `sourceKey` frontmatter value derived from a short SHA-256 hash of the source path; the local vault path itself is not written into the post. Add `--publish` only when the whole folder should become public immediately. Add `--force` when you intentionally want to import a source file again as a new post.
+文件夹导入器会扫描嵌套的 `.md` 和 `.mdx` 文件。它默认创建草稿文章，保留每篇笔记正文，并跳过已经通过上一次文件夹导入处理过的源文件。去重依赖 `sourceKey` frontmatter，它由源路径的短 SHA-256 hash 生成；本地 vault 路径本身不会写入文章。只有整批内容都应立即公开时才加 `--publish`。如果明确想把同一个源文件再次导入为新文章，可以加 `--force`。
 
-## Validation
+## 校验
 
-Run a fast local content check before committing new entries:
+提交新内容前，先运行快速本地内容检查：
 
 ```bash
 npm run validate:content
 ```
 
-This checks required frontmatter, duplicate slugs, duplicate photo sources, local image paths, local image dimensions, dates, tags, missing accessibility text, the web manifest, PWA icon dimensions, core favicon files, and the default social preview image.
+这个命令会检查必需 frontmatter、重复 slug、重复照片源、本地图片路径、本地图片尺寸、日期、标签、缺失的可访问性文本、Web Manifest、PWA 图标尺寸、核心 favicon 文件和默认社交预览图。
 
-Before publishing a larger gallery update, run the remote image check too:
+在发布较大的相册更新前，也建议运行远程图片检查：
 
 ```bash
 npm run validate:content:remote
 ```
 
-The remote check fetches external photo URLs and compares their actual dimensions with the `width` and `height` stored in frontmatter. This catches the kind of mismatch that can make cards or detail pages reserve the wrong aspect ratio.
+远程检查会拉取外部图片 URL，并把真实尺寸与 frontmatter 里的 `width` 和 `height` 对比。它能提前发现会导致卡片或详情页预留错误比例的问题。

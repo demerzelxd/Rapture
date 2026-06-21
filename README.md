@@ -1,166 +1,166 @@
 # Rapture
 
-Rapture is a static Astro personal site for writing and photography. It is built around a shader-led oil-ink home page, then keeps the rest of the site maintainable: MDX writing, a static gallery, RSS, JSON Feed, OpenSearch, sitemap, robots.txt, a JSON content index, and a hidden local drafting studio.
+Rapture 是一个基于 Astro 的静态个人主页，用来承载写作和摄影。首页以 WebGL 油墨效果作为第一印象，内容层保持可维护：MDX 博文、静态相册、RSS、JSON Feed、OpenSearch、站点地图、`robots.txt`、公开内容索引，以及一个隐藏的本地写作工作台。
 
-## Stack
+## 技术栈
 
-- Astro static output
-- MDX content collections
-- No database or custom server
-- Vercel-friendly free deployment
-- Local content helpers for posts, photos, Obsidian imports, and photo batch imports
-- Web app manifest and mobile home-screen metadata
-- Unified JSON Feed for writing and gallery updates
-- OpenSearch discovery for browser-level site search
-- Public JSON content index for personal scripts and automation
+- Astro 静态输出
+- MDX Content Collections
+- 不依赖数据库或自建服务器
+- 适合部署到 Vercel 免费额度
+- 本地内容工具：创建博文、创建照片条目、导入 Obsidian、批量导入照片
+- Web App Manifest 和移动端主屏元数据
+- 写作与相册共用的 JSON Feed
+- OpenSearch，让浏览器可以发现站内搜索
+- 公开的 JSON 内容索引，方便个人脚本或自动化读取
 
-## Local Development
+## 本地开发
 
-Install dependencies:
+安装依赖：
 
 ```bash
 npm install
 ```
 
-Run the site locally:
+启动本地开发服务：
 
 ```bash
 npm run dev
 ```
 
-Open:
+打开：
 
 ```text
 http://127.0.0.1:4321/
 ```
 
-Run the local quality gate before publishing:
+发布前运行本地质量门：
 
 ```bash
 npm run check
 ```
 
-This validates content metadata, public branding assets, PWA icons, runs Astro's type/content checks, builds the static site, and checks the generated public feeds/discovery files, accessibility anchors, image alt text, and internal links. It is the same command used by GitHub Actions.
+这个命令会校验内容元数据、公开品牌资源、PWA 图标，执行 Astro 类型和内容检查，构建静态站点，并检查生成后的 feed、发现文件、可访问性锚点、图片 `alt` 文本和内部链接。GitHub Actions 使用的也是同一个命令。
 
-Build the site directly:
+只构建站点：
 
 ```bash
 npm run build
 ```
 
-Validate content frontmatter, local image metadata, and public branding assets:
+校验内容 frontmatter、本地图片元数据和公开品牌资源：
 
 ```bash
 npm run validate:content
 ```
 
-Validate the generated public output after a build:
+构建后校验生成的公开输出：
 
 ```bash
 npm run validate:public
 ```
 
-Run the slower remote image dimension check before publishing a larger gallery update:
+在发布较大的相册更新前，可以额外运行远程图片尺寸校验：
 
 ```bash
 npm run validate:content:remote
 ```
 
-Remote image validation is intentionally manual because external image hosts can be slow or temporarily unavailable.
+远程图片校验需要联网，外部图床也可能变慢或短暂不可用，所以它被设计成手动执行。
 
-Run the launch gate after setting the final domain:
+配置最终域名后，运行上线检查：
 
 ```bash
 PUBLIC_SITE_URL=https://your-domain.com npm run check:launch
 ```
 
-On Windows PowerShell:
+Windows PowerShell 写法：
 
 ```powershell
 $env:PUBLIC_SITE_URL = "https://your-domain.com"; npm run check:launch
 ```
 
-This slower gate checks remote image dimensions, builds with the production domain, validates generated public output, and fails if placeholder hosts remain in the static build.
+这个较慢的检查会校验远程图片尺寸，使用生产域名构建，验证生成的公开输出，并在静态产物里残留占位域名时失败。
 
-Preview the production build:
+预览生产构建：
 
 ```bash
 npm run preview
 ```
 
-## Content
+## 内容目录
 
-Published content lives under:
+发布内容位于：
 
-- `src/content/blog/` for writing
-- `src/content/photos/` for gallery entries
-- `public/photos/` for local image files
+- `src/content/blog/`：写作内容
+- `src/content/photos/`：相册条目
+- `public/photos/`：本地图片文件
 
-Create a draft post:
-
-```bash
-npm run new:post -- -- --title "Post title" --description "One short sentence." --tags "note,essay"
-```
-
-Create a draft photo entry:
+创建一篇草稿：
 
 ```bash
-npm run new:photo -- -- --title "Photo title" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "Describe the photo."
+npm run new:post -- -- --title "文章标题" --description "一句用于卡片和元数据的摘要。" --tags "note,essay"
 ```
 
-Import an Obsidian note:
+创建一个照片条目：
+
+```bash
+npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
+```
+
+导入一篇 Obsidian 笔记：
 
 ```bash
 npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay"
 ```
 
-Import a folder of Obsidian notes:
+导入一个 Obsidian 文件夹：
 
 ```bash
 npm run import:obsidian:folder -- -- --from "C:/path/to/vault/Rapture" --tags "note,essay"
 ```
 
-Import a folder of local photos:
+批量导入本地照片：
 
 ```bash
 npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue"
 ```
 
-Add `--publish` to these commands only when the entry should appear publicly. Draft entries stay out of routes, lists, and the sitemap.
+这些命令默认生成草稿。只有加上 `--publish`，条目才会公开出现在路由、列表、feed 和 sitemap 里。
 
-For the full authoring workflow, see [docs/content-workflow.md](docs/content-workflow.md).
+完整写作流程见 [docs/content-workflow.md](docs/content-workflow.md)。
 
-## Browser Studio
+## 浏览器写作工作台
 
-The hidden authoring surface is available at:
+隐藏的浏览器写作界面位于：
 
 ```text
 /studio/
 ```
 
-It generates the same MDX frontmatter as the command-line helpers. It is intentionally not linked from the public navigation and is marked `noindex`.
+它会生成和命令行工具一致的 MDX frontmatter，可以复制或下载文件。这个页面不会出现在公开导航里，并且带有 `noindex`。
 
-## Deployment
+## 部署
 
-The intended production path is Vercel's free static hosting:
+推荐的生产路径是 Vercel 免费静态托管：
 
-1. Push this repository to GitHub.
-2. Import the repository into Vercel.
-3. Keep the default Astro build settings:
+1. 把本仓库推送到 GitHub。
+2. 在 Vercel 中导入 GitHub 仓库。
+3. 保持默认 Astro 构建设置：
    - Build command: `npm run build`
    - Output directory: `dist`
-4. Set `PUBLIC_SITE_URL` to the final canonical domain, for example `https://your-domain.com`.
-5. Connect the custom domain in Vercel.
+4. 设置 `PUBLIC_SITE_URL` 为最终规范域名，例如 `https://your-domain.com`。
+5. 在 Vercel 中绑定自定义域名。
 
-GitHub Actions runs `npm run check` on pushes and pull requests. Keep that gate green before relying on Vercel's production deployment.
+GitHub Actions 会在 push 和 pull request 时运行 `npm run check`。依赖 Vercel 生产部署前，先保持这个质量门为绿色。
 
-If `PUBLIC_SITE_URL` is not set, the site falls back to Vercel's generated `VERCEL_URL` during hosted builds. Local builds fall back to `https://rapture.example.com`, so production should set `PUBLIC_SITE_URL`.
+如果没有设置 `PUBLIC_SITE_URL`，托管在 Vercel 上构建时会回退到 Vercel 提供的 `VERCEL_URL`。本地构建会回退到 `https://rapture.example.com`，因此生产环境应明确设置 `PUBLIC_SITE_URL`。
 
-More detail is in [docs/deployment.md](docs/deployment.md).
+更多部署细节见 [docs/deployment.md](docs/deployment.md)。
 
-## Generated Public Files
+## 生成的公开文件
 
-The static build includes:
+静态构建会包含：
 
 - `/content.json`
 - `/feed.json`
@@ -170,12 +170,12 @@ The static build includes:
 - `/sitemap.xml`
 - `/robots.txt`
 
-These use `PUBLIC_SITE_URL` when it is available.
+这些文件在可用时都会使用 `PUBLIC_SITE_URL` 生成绝对 URL。
 
-`/content.json` lists only published writing and gallery entries. Draft content is excluded.
+`/content.json` 只列出已发布的文章和相册条目，草稿会被排除。
 
-`/feed.json` is a JSON Feed 1.1 timeline for published writing and gallery updates. `/rss.xml` remains the writing-only RSS feed.
+`/feed.json` 是 JSON Feed 1.1 时间线，包含已发布的写作和相册更新。`/rss.xml` 仍然只保留写作内容。
 
-`/opensearch.xml` lets browsers discover Rapture's built-in `/search/?q=...` page as a searchable site provider.
+`/opensearch.xml` 让浏览器可以把 Rapture 的 `/search/?q=...` 页面识别为可搜索站点。
 
-`/og-image.png` is the default social preview image. `public/og-image.svg` is the editable source.
+`/og-image.png` 是默认社交预览图，`public/og-image.svg` 是它的可编辑源文件。
