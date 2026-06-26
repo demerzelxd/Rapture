@@ -11,6 +11,7 @@
     "new:post": "node scripts/content.mjs post",
     "new:photo": "node scripts/content.mjs photo",
     "new:remote-photo": "node scripts/content.mjs remote-photo",
+    "new:r2-photo": "node scripts/r2-photo.mjs",
     "import:obsidian": "node scripts/content.mjs import-post",
     "import:obsidian:folder": "node scripts/content.mjs import-posts",
     "import:photos": "node scripts/content.mjs import-photos",
@@ -25,6 +26,7 @@
     "@astrojs/check": "^0.9.9",
     "@astrojs/mdx": "^6.0.3",
     "astro": "^6.4.8",
+    "sharp": "^0.34.5",
     "typescript": "^5.9.3"
   },
   "overrides": {

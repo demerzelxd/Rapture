@@ -119,6 +119,7 @@ function createPhoto(options) {
     line('location', options.location ?? 'Unknown'),
     dateLine('date', date),
     line('src', src),
+    options.thumb ? line('thumb', options.thumb) : undefined,
     line('width', dimensions.width),
     line('height', dimensions.height),
     line('tone', options.tone ?? 'quiet pressure'),
@@ -138,6 +139,9 @@ function createPhoto(options) {
 async function createRemotePhoto(options) {
   const src = required(options.src ?? options.url ?? options._[0], '--src, --url, or a positional URL is required');
   validateRemoteImageUrl(src);
+  if (options.thumb) {
+    validateRemoteImageUrl(options.thumb);
+  }
 
   const sourceName = options.filename ?? options.fileName ?? options.name ?? titleFromUrl(src);
   const title = options.title ?? titleFromName(sourceName);
@@ -159,6 +163,7 @@ async function createRemotePhoto(options) {
     line('location', options.location ?? 'Unsorted'),
     dateLine('date', date),
     line('src', src),
+    options.thumb ? line('thumb', options.thumb) : undefined,
     line('width', dimensions.width),
     line('height', dimensions.height),
     line('tone', options.tone ?? 'uncatalogued light'),
@@ -842,8 +847,9 @@ function printUsage() {
 
 Usage:
   npm run new:post -- -- --title "Title" --description "One sentence" --tags "note,frontend" [--publish]
-  npm run new:photo -- -- --title "Photo" --src /photos/photo.jpg --location Shanghai --tone "quiet blue"
-  npm run new:remote-photo -- -- --src "https://example.com/photo.jpg" --location Shanghai --tone "quiet blue"
+  npm run new:photo -- -- --title "Photo" --src /photos/photo.jpg --thumb /photos/thumbs/photo.webp --location Shanghai --tone "quiet blue"
+  npm run new:remote-photo -- -- --src "https://img.example.com/full/photo.webp" --thumb "https://img.example.com/thumb/photo.webp" --location Shanghai --tone "quiet blue"
+  npm run new:r2-photo -- -- --src "https://img.example.com/full/photo.webp" --location Shanghai --tone "quiet blue"
   npm run import:obsidian -- -- --from "C:/vault/note.md" --tags "note,essay" [--publish]
   npm run import:obsidian:folder -- -- --from "C:/vault/Rapture" --tags "note,essay" [--publish]
   npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue" [--publish]

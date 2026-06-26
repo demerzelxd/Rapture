@@ -37,6 +37,7 @@ const photos = defineCollection({
     location: z.string(),
     date: z.coerce.date(),
     src: imageSource,
+    thumb: imageSource.optional(),
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     tone: z.string(),

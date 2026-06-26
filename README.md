@@ -107,14 +107,22 @@ npm run new:post -- -- --title "文章标题" --description "一句用于卡片�
 创建一个照片条目：
 
 ```bash
-npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
+npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --thumb /photos/thumbs/photo.webp --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
 ```
 
-从 PicList 或远程图片 URL 创建 Gallery 草稿，并自动读取尺寸：
+从 R2 原图 URL 创建 Gallery 草稿，并自动生成/上传缩略图：
 
 ```bash
-npm run new:remote-photo -- -- --src "https://images.example.com/rapture/gallery/photo.webp" --location Shanghai --tone "quiet blue"
+npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --location Shanghai --tone "quiet blue"
 ```
+
+如果这张原图已经有相册条目，只想补缩略图：
+
+```bash
+npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --update-existing
+```
+
+相册字段约定：`src` 是详情页和 FULL FRAME 使用的原图或高清图，`thumb` 是首页、相册列表、搜索和 feed 使用的轻量图。`thumb` 可选；没填时会自动回退到 `src`。如果你已经手工准备好了 `thumb` URL，也仍然可以使用 `new:remote-photo --thumb`。
 
 导入一篇 Obsidian 笔记：
 

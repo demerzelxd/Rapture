@@ -106,6 +106,9 @@ function validateContentIndex(content) {
   for (const photo of gallery) {
     const label = `content.json:gallery:${photo?.slug ?? 'unknown'}`;
     requireAbsoluteUrl(label, photo?.image, 'image');
+    if (photo?.thumbnail !== undefined) {
+      requireAbsoluteUrl(label, photo.thumbnail, 'thumbnail');
+    }
     requirePositiveNumber(label, photo, 'width');
     requirePositiveNumber(label, photo, 'height');
     const expectedRatio = Number((photo.width / photo.height).toFixed(4));

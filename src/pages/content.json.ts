@@ -1,6 +1,7 @@
 import { getCollection } from 'astro:content';
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '../lib/site';
 import { getReadingTime } from '../lib/readingTime';
+import { photoThumbSrc } from '../lib/photoImages';
 
 function isoDate(date: Date) {
   return date.toISOString();
@@ -34,6 +35,7 @@ export async function GET() {
     title: photo.data.title,
     url: absoluteUrl(`/gallery/${photo.id}/`),
     image: absoluteUrl(photo.data.src),
+    thumbnail: absoluteUrl(photoThumbSrc(photo)),
     width: photo.data.width,
     height: photo.data.height,
     aspectRatio: Number((photo.data.width / photo.data.height).toFixed(4)),

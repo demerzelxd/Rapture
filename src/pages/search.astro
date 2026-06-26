@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getReadingTime } from '../lib/readingTime';
+import { photoThumbSrc } from '../lib/photoImages';
 
 const posts = (await getCollection('blog'))
   .filter((post) => !post.data.draft)
@@ -31,7 +32,7 @@ const results = [
     description: photo.data.tone,
     chips: [photo.data.location],
     text: [photo.data.title, photo.data.location, photo.data.tone, photo.data.alt ?? '', photo.body ?? ''].join(' '),
-    src: photo.data.src,
+    src: photoThumbSrc(photo),
     alt: photo.data.alt ?? photo.data.title,
     width: photo.data.width,
     height: photo.data.height,

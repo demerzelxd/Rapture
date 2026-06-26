@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 import { absoluteUrl, SITE_NAME } from '../../lib/site';
+import { photoAmbientSrc, photoDisplaySrc, photoThumbSrc } from '../../lib/photoImages';
 
 export async function getStaticPaths() {
   const photos = (await getCollection('photos')).filter((photo) => !photo.data.draft);
@@ -20,14 +21,18 @@ const previousPhoto = currentIndex > 0 ? photos[currentIndex - 1] : undefined;
 const nextPhoto = currentIndex >= 0 && currentIndex < photos.length - 1 ? photos[currentIndex + 1] : undefined;
 const { Content } = await render(photo);
 const photoUrl = absoluteUrl(`/gallery/${photo.id}/`);
-const imageUrl = absoluteUrl(photo.data.src);
+const displaySrc = photoDisplaySrc(photo);
+const thumbSrc = photoThumbSrc(photo);
+const ambientSrc = photoAmbientSrc(photo);
+const imageUrl = absoluteUrl(displaySrc);
+const thumbnailUrl = absoluteUrl(thumbSrc);
 const photoJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'ImageObject',
   name: photo.data.title,
   description: photo.data.alt ?? `${photo.data.title}, ${photo.data.location}.`,
   contentUrl: imageUrl,
-  thumbnailUrl: imageUrl,
+  thumbnailUrl,
   url: photoUrl,
   width: photo.data.width,
   height: photo.data.height,
@@ -56,14 +61,14 @@ const photoJsonLd = {
 <BaseLayout
   title={`${photo.data.title} | Rapture`}
   description={`${photo.data.title}, ${photo.data.location}.`}
-  image={photo.data.src}
+  image={thumbSrc}
   jsonLd={photoJsonLd}
 >
-  <main id="main-content" class="photo-detail" tabindex="-1" style={`--photo-ambient-image: url("${photo.data.src}")`}>
+  <main id="main-content" class="photo-detail" tabindex="-1" style={`--photo-ambient-image: url("${ambientSrc}")`}>
     <a class="back-link" href="/gallery/">Return to gallery</a>
     <section class="photo-stage">
       <button class="photo-image-button" type="button" data-photo-open aria-label={`View ${photo.data.title} full frame`}>
-        <img src={photo.data.src} alt={photo.data.alt ?? photo.data.title} width={photo.data.width} height={photo.data.height} />
+        <img src={displaySrc} alt={photo.data.alt ?? photo.data.title} width={photo.data.width} height={photo.data.height} />
       </button>
       <button class="view-frame-button" type="button" data-photo-open aria-label={`View ${photo.data.title} full frame`}>
         Full frame
@@ -104,11 +109,11 @@ const photoJsonLd = {
     </section>
   </main>
 
-  <dialog class="photo-viewer" id="photo-viewer" data-photo-viewer aria-labelledby="photo-viewer-title" style={`--photo-ambient-image: url("${photo.data.src}")`}>
+  <dialog class="photo-viewer" id="photo-viewer" data-photo-viewer aria-labelledby="photo-viewer-title" style={`--photo-ambient-image: url("${ambientSrc}")`}>
     <div class="viewer-field">
       <button class="viewer-close" type="button" data-photo-close aria-label="Close full frame">Close</button>
       <figure class="viewer-frame">
-        <img src={photo.data.src} alt={photo.data.alt ?? photo.data.title} width={photo.data.width} height={photo.data.height} />
+        <img src={displaySrc} alt={photo.data.alt ?? photo.data.title} width={photo.data.width} height={photo.data.height} />
         <figcaption class="viewer-caption">
           <p>{photo.data.location}</p>
           <h2 id="photo-viewer-title">{photo.data.title}</h2>

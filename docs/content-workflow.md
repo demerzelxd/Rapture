@@ -83,19 +83,34 @@ npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --locatio
 对于 `public/` 下的本地 PNG 和 JPG 文件，helper 会自动读取 `width` 和 `height`。远程 URL 需要显式传入尺寸：
 
 ```bash
-npm run new:photo -- -- --title "照片标题" --src "https://example.com/photo.jpg" --width 1400 --height 933 --location Shanghai --tone "quiet blue"
+npm run new:photo -- -- --title "照片标题" --src "https://example.com/full/photo.jpg" --thumb "https://example.com/thumb/photo.webp" --width 1400 --height 933 --location Shanghai --tone "quiet blue"
 ```
 
-如果远程 URL 来自 PicList、ImageKit、NAS 图床或其他公开图片源，推荐使用 `new:remote-photo` 自动读取尺寸并生成 Gallery 草稿：
+如果远程 URL 来自 R2，推荐使用 `new:r2-photo`。这个命令只需要原图 URL，会下载原图读取尺寸，生成 WebP 缩略图，上传到 R2 的 `thumb/` 路径，并创建 Gallery 草稿：
 
 ```bash
-npm run new:remote-photo -- -- --src "https://images.example.com/rapture/gallery/photo.webp" --location Shanghai --tone "quiet blue"
+npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --location Shanghai --tone "quiet blue"
 ```
 
-这个命令也接受位置参数 URL，方便接 PicList 上传后脚本：
+如果 PicList 已经创建了相册条目，后面才想补缩略图，使用：
 
 ```bash
-npm run new:remote-photo -- -- "https://images.example.com/rapture/gallery/photo.webp" --location Shanghai --tone "quiet blue"
+npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --update-existing
+```
+
+`src` 永远表示原图或高清图，供照片详情页和 FULL FRAME 查看使用。`thumb` 是可选缩略图，首页、Gallery 列表、搜索结果、feed 和 `/content.json` 会优先使用它；没填 `thumb` 时会自动回退到 `src`。建议 R2 路径固定成两类：
+
+```text
+https://img.getschwifty.me/rapture/gallery/full/photo.webp
+https://img.getschwifty.me/rapture/gallery/thumb/photo.webp
+```
+
+`new:r2-photo` 默认生成长边 1100px、质量 78 的 WebP 缩略图。你也可以用 `--thumb-size 900` 或 `--thumb-quality 82` 临时覆盖。这样页面布局仍使用原图的 `width` / `height` 锁定比例，但列表不会下载大图。
+
+如果你已经手工准备好了原图 URL 和缩略图 URL，仍然可以使用旧的通用命令：
+
+```bash
+npm run new:remote-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --thumb "https://file.getschwifty.me/rapture/gallery/thumb/photo.webp" --location Shanghai --tone "quiet blue"
 ```
 
 helper 创建的照片条目默认是草稿。只有加上 `--publish`，这张照片才会进入公开相册。
@@ -116,6 +131,7 @@ title: "照片标题"
 location: "Shanghai"
 date: 2026-06-20
 src: "https://example.com/photo.jpg"
+thumb: "https://example.com/photo-thumb.webp"
 width: 1400
 height: 933
 tone: "quiet blue"

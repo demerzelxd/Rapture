@@ -93,6 +93,7 @@ title: "照片标题"
 location: "Shanghai"
 date: 2026-06-21
 src: "https://images.example.com/rapture/gallery/photo-title.webp"
+thumb: "https://images.example.com/rapture/gallery/photo-title-thumb.webp"
 width: 1600
 height: 1067
 tone: "brass light after rain"
@@ -106,6 +107,7 @@ draft: true
 字段说明：
 
 - `src` 可以是远程图片 URL，也可以是 `/photos/file.jpg` 这种本地 public 路径；Gallery 主流程推荐远程 URL。
+- `thumb` 可选，表示首页、Gallery 列表、搜索和 feed 使用的缩略图；没填时自动回退到 `src`。
 - `width` 和 `height` 必填，用来锁定图片比例，避免移动端和详情页布局抖动。
 - `tone` 是页面氛围字段，会显示在照片信息里，也适合写颜色、光线、天气或情绪。
 - `alt` 可选但强烈建议写；公开页面会校验图片是否有可访问性文本。
@@ -116,25 +118,25 @@ draft: true
 推荐流：
 
 1. 在 Obsidian 中建一个 `Rapture/Gallery` 文件夹。
-2. 先用 PicList 上传原图或压缩后的 WebP/JPEG。
-3. 复制 PicList 返回的远程 URL。
-4. 用 `new:remote-photo` 生成 Gallery 草稿，自动填入 `src`、`width`、`height` 和文件名推导出的标题。
+2. 用 PicList 上传原图或压缩后的 WebP/JPEG 到 R2。
+3. 复制 PicList 返回的原图 URL。
+4. 用 `new:r2-photo` 生成 Gallery 草稿；脚本会自动读取原图尺寸、生成 WebP 缩略图、上传到 R2，并写入 `src`、`thumb`、`width`、`height`。
 5. 通过 FNS 同步到 `src/content/photos/`。
 6. 发布前运行 `npm run validate:content`；如果是远程图床，发布大量照片前再运行 `npm run validate:content:remote`。
 
 命令示例：
 
 ```bash
-npm run new:remote-photo -- -- --src "https://images.example.com/rapture/gallery/night-platform.webp" --location Shanghai --tone "brass light after rain"
+npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/night-platform.webp" --location Shanghai --tone "brass light after rain"
 ```
 
-也可以把 URL 作为第一个位置参数传入，方便接 PicList 上传后脚本：
+如果条目已经存在，只想补 `thumb`：
 
 ```bash
-npm run new:remote-photo -- -- "https://images.example.com/rapture/gallery/night-platform.webp" --location Shanghai --tone "brass light after rain"
+npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/night-platform.webp" --update-existing
 ```
 
-这个命令会下载远程图片读取尺寸，创建 `src/content/photos/*.mdx` 草稿，并默认写入 `draft: true`。如果 PicList 的上传后脚本支持把上传结果 URL 传给 shell 命令，就把结果 URL 填到上面的 `--src` 或位置参数里。准备公开时，把生成文件里的 `draft` 改成 `false`。
+这个命令会下载远程图片读取尺寸，创建 `src/content/photos/*.mdx` 草稿，并默认写入 `draft: true`。如果 PicList 的上传后脚本支持把上传结果 URL 传给 shell 命令，就把结果 URL 填到上面的 `--src`。准备公开时，把生成文件里的 `draft` 改成 `false`。
 
 ## 免费图床建议
 

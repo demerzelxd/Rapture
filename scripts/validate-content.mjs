@@ -92,6 +92,13 @@ async function validatePhoto(filePath) {
 
   validateImageSource(filePath, data.src, 'src');
 
+  if (data.thumb !== undefined) {
+    validateImageSource(filePath, data.thumb, 'thumb');
+    if (data.thumb === data.src) {
+      addWarning(filePath, 'thumb is the same as src; gallery lists will still load the original image');
+    }
+  }
+
   if (seenPhotoSources.has(data.src)) {
     addError(filePath, `duplicate photo src also used by ${seenPhotoSources.get(data.src)}`);
   } else {
@@ -115,6 +122,10 @@ async function validatePhoto(filePath) {
       filePath,
       `image dimensions mismatch for ${data.src}: frontmatter ${expected.width}x${expected.height}, actual ${actual.width}x${actual.height}`,
     );
+  }
+
+  if (typeof data.thumb === 'string') {
+    await resolveImageSize(data.thumb, filePath);
   }
 }
 
