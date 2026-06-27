@@ -23,7 +23,7 @@ const tags = [...tagCounts.entries()].sort(([a], [b]) => a.localeCompare(b));
       <div class="filter-topline">
         <label class="filter-field">
           <span>Search signal</span>
-          <input data-filter-input type="search" placeholder="Title, fragment, tag..." autocomplete="off" />
+          <input id="writing-search" name="writing-search" data-filter-input type="search" placeholder="Title, fragment, tag..." autocomplete="off" />
         </label>
         <output class="filter-count" data-filter-count>{posts.length} / {posts.length}</output>
       </div>

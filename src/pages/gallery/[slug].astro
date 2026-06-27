@@ -2,7 +2,6 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection, render } from 'astro:content';
 import { absoluteUrl, SITE_NAME } from '../../lib/site';
-import { photoAmbientSrc, photoDisplaySrc, photoThumbSrc } from '../../lib/photoImages';
 
 export async function getStaticPaths() {
   const photos = (await getCollection('photos')).filter((photo) => !photo.data.draft);
@@ -21,18 +20,15 @@ const previousPhoto = currentIndex > 0 ? photos[currentIndex - 1] : undefined;
 const nextPhoto = currentIndex >= 0 && currentIndex < photos.length - 1 ? photos[currentIndex + 1] : undefined;
 const { Content } = await render(photo);
 const photoUrl = absoluteUrl(`/gallery/${photo.id}/`);
-const displaySrc = photoDisplaySrc(photo);
-const thumbSrc = photoThumbSrc(photo);
-const ambientSrc = photoAmbientSrc(photo);
+const displaySrc = photo.data.src;
+const ambientSrc = photo.data.src;
 const imageUrl = absoluteUrl(displaySrc);
-const thumbnailUrl = absoluteUrl(thumbSrc);
 const photoJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'ImageObject',
   name: photo.data.title,
   description: photo.data.alt ?? `${photo.data.title}, ${photo.data.location}.`,
   contentUrl: imageUrl,
-  thumbnailUrl,
   url: photoUrl,
   width: photo.data.width,
   height: photo.data.height,
@@ -61,7 +57,7 @@ const photoJsonLd = {
 <BaseLayout
   title={`${photo.data.title} | Rapture`}
   description={`${photo.data.title}, ${photo.data.location}.`}
-  image={thumbSrc}
+  image={displaySrc}
   jsonLd={photoJsonLd}
 >
   <main id="main-content" class="photo-detail" tabindex="-1" style={`--photo-ambient-image: url("${ambientSrc}")`}>

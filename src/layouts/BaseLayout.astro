@@ -103,6 +103,28 @@ const currentSection = currentPath.startsWith('/blog/')
           <a href="/archive/" aria-current={currentSection === 'archive' ? 'page' : undefined}>Archive</a>
         </nav>
       </header>
+      <div class="command-palette" data-command-palette hidden>
+        <button class="command-palette-backdrop" type="button" data-command-close aria-label="Close command palette"></button>
+        <section class="command-console" role="dialog" aria-modal="true" aria-label="Rapture command palette">
+          <label class="command-input-row">
+            <span aria-hidden="true">&gt;</span>
+            <input
+              id="command-search"
+              name="command"
+              data-command-input
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Search command, dispatch, frame..."
+              aria-label="Search Rapture commands"
+              aria-controls="command-results"
+              aria-activedescendant=""
+            />
+          </label>
+          <div id="command-results" class="command-results" data-command-results role="listbox" aria-label="Command results"></div>
+          <p class="command-hint">Enter opens / arrows move / Esc closes</p>
+        </section>
+      </div>
       <script is:inline>
         (() => {
           const root = document.documentElement;
@@ -123,6 +145,237 @@ const currentSection = currentPath.startsWith('/blog/')
           if ('ResizeObserver' in window) {
             new ResizeObserver(updateAnchorOffset).observe(header);
           }
+        })();
+      </script>
+      <script is:inline>
+        (() => {
+          const palette = document.querySelector('[data-command-palette]');
+          const input = palette?.querySelector('[data-command-input]');
+          const results = palette?.querySelector('[data-command-results]');
+          const closeButton = palette?.querySelector('[data-command-close]');
+
+          if (!(palette instanceof HTMLElement) || !(input instanceof HTMLInputElement) || !(results instanceof HTMLElement)) return;
+
+          const staticCommands = [
+            { label: 'Entry', detail: 'Return to the ink gate', url: '/', keywords: 'home hero ink' },
+            { label: 'Writing', detail: 'Open dispatches from below', url: '/blog/', keywords: 'blog posts essays notes' },
+            { label: 'Gallery', detail: 'Open the wall of captured light', url: '/gallery/', keywords: 'photos frames pictures' },
+            { label: 'Archive', detail: 'Open the pressure map', url: '/archive/', keywords: 'index tags years places system cable' },
+            { label: 'Search', detail: 'Search writing and gallery together', url: '/search/', keywords: 'find content lookup' },
+          ];
+          const hiddenCommands = [
+            { label: 'Would you kindly', detail: 'Pulse the city lights once', action: 'kindly', keywords: 'bioshock hidden easter egg', hidden: true },
+            { label: 'Surface', detail: 'Return to the first breath', url: '/', keywords: 'escape top entry lighthouse', hidden: true },
+            { label: 'Rapture protocol', detail: 'Open the archive cable', url: '/archive/', keywords: 'rapture city protocol', hidden: true },
+          ];
+          const contentState = { writing: [], gallery: [] };
+
+          let commandCache;
+          let commandPromise;
+          let activeIndex = 0;
+          let visibleCommands = [];
+          let lastActiveElement = null;
+
+          const normalize = (value) => String(value ?? '').toLowerCase();
+          const isTypingTarget = (target) => target instanceof HTMLElement && (
+            target.isContentEditable ||
+            ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+          );
+          const localUrl = (value) => {
+            try {
+              const url = new URL(value, window.location.href);
+              return `${url.pathname}${url.search}${url.hash}`;
+            } catch {
+              return value;
+            }
+          };
+
+          const loadCommands = async () => {
+            if (commandCache) return commandCache;
+            if (!commandPromise) {
+              commandPromise = fetch('/content.json', { headers: { Accept: 'application/json' } })
+                .then((response) => (response.ok ? response.json() : undefined))
+                .then((content) => {
+                  contentState.writing = Array.isArray(content?.writing) ? content.writing : [];
+                  contentState.gallery = Array.isArray(content?.gallery) ? content.gallery : [];
+                  const writingCommands = contentState.writing.map((entry) => ({
+                    label: entry.title,
+                    detail: `Writing / ${entry.readingTime ?? 'dispatch'}`,
+                    url: localUrl(entry.url),
+                    keywords: [entry.description, ...(entry.tags ?? [])].join(' '),
+                  }));
+                  const galleryCommands = contentState.gallery.map((entry) => ({
+                    label: entry.title,
+                    detail: `Gallery / ${entry.location ?? 'frame'}`,
+                    url: localUrl(entry.url),
+                    keywords: [entry.tone, entry.alt, entry.location].join(' '),
+                  }));
+                  const randomCommands = [
+                    contentState.gallery.length
+                      ? { label: 'Random frame', detail: 'Open an unpredictable photograph', action: 'random-gallery', keywords: 'photo random light' }
+                      : undefined,
+                    contentState.writing.length
+                      ? { label: 'Random dispatch', detail: 'Open an unpredictable note', action: 'random-writing', keywords: 'post random note' }
+                      : undefined,
+                  ].filter(Boolean);
+                  commandCache = [...staticCommands, ...randomCommands, ...writingCommands, ...galleryCommands, ...hiddenCommands];
+                  return commandCache;
+                })
+                .catch(() => {
+                  commandCache = [...staticCommands, ...hiddenCommands];
+                  return commandCache;
+                });
+            }
+            return commandPromise;
+          };
+
+          const scoreCommand = (command, query) => {
+            if (!query) {
+              if (command.hidden) return 0;
+              return command.action?.startsWith('random') ? 7 : 5;
+            }
+            const label = normalize(command.label);
+            const detail = normalize(command.detail);
+            const keywords = normalize(command.keywords);
+            if (label === query) return 100;
+            if (label.startsWith(query)) return 80;
+            if (label.includes(query)) return 60;
+            if (detail.includes(query)) return 34;
+            if (keywords.includes(query)) return 26;
+            return 0;
+          };
+
+          const setActiveIndex = (index) => {
+            activeIndex = Math.max(0, Math.min(index, visibleCommands.length - 1));
+            const options = Array.from(results.querySelectorAll('[data-command-option]'));
+            options.forEach((option, optionIndex) => {
+              const selected = optionIndex === activeIndex;
+              option.setAttribute('aria-selected', selected ? 'true' : 'false');
+              if (selected) {
+                input.setAttribute('aria-activedescendant', option.id);
+                option.scrollIntoView({ block: 'nearest' });
+              }
+            });
+          };
+
+          const runCommand = (command) => {
+            if (!command) return;
+            closePalette();
+
+            if (command.url) {
+              window.location.assign(command.url);
+              return;
+            }
+
+            if (command.action === 'kindly') {
+              document.body.classList.add('kindly-awake');
+              window.setTimeout(() => document.body.classList.remove('kindly-awake'), 1200);
+              return;
+            }
+
+            if (command.action === 'random-gallery' || command.action === 'random-writing') {
+              const pool = command.action === 'random-gallery' ? contentState.gallery : contentState.writing;
+              const target = pool[Math.floor(Math.random() * pool.length)];
+              if (target?.url) window.location.assign(localUrl(target.url));
+            }
+          };
+
+          const renderCommands = async () => {
+            const commands = await loadCommands();
+            const query = normalize(input.value.trim());
+            visibleCommands = commands
+              .map((command) => ({ command, score: scoreCommand(command, query) }))
+              .filter((entry) => entry.score > 0)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 10)
+              .map((entry) => entry.command);
+
+            results.replaceChildren();
+
+            if (!visibleCommands.length) {
+              const empty = document.createElement('p');
+              empty.className = 'command-empty';
+              empty.textContent = 'No signal answered.';
+              results.append(empty);
+              input.removeAttribute('aria-activedescendant');
+              return;
+            }
+
+            visibleCommands.forEach((command, index) => {
+              const button = document.createElement('button');
+              button.id = `command-option-${index}`;
+              button.type = 'button';
+              button.setAttribute('role', 'option');
+              button.setAttribute('data-command-option', '');
+              button.setAttribute('aria-selected', index === activeIndex ? 'true' : 'false');
+
+              const label = document.createElement('strong');
+              label.textContent = command.label;
+              const detail = document.createElement('span');
+              detail.textContent = command.detail;
+              button.append(label, detail);
+              button.addEventListener('click', () => runCommand(command));
+              results.append(button);
+            });
+
+            setActiveIndex(activeIndex);
+          };
+
+          const openPalette = async () => {
+            if (!palette.hidden) return;
+            lastActiveElement = document.activeElement;
+            palette.hidden = false;
+            document.body.classList.add('command-open');
+            input.value = '';
+            activeIndex = 0;
+            await renderCommands();
+            requestAnimationFrame(() => input.focus({ preventScroll: true }));
+          };
+
+          const closePalette = () => {
+            if (palette.hidden) return;
+            palette.hidden = true;
+            document.body.classList.remove('command-open');
+            input.value = '';
+            if (lastActiveElement instanceof HTMLElement) {
+              lastActiveElement.focus({ preventScroll: true });
+            }
+          };
+
+          input.addEventListener('input', () => {
+            activeIndex = 0;
+            renderCommands();
+          });
+
+          input.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              setActiveIndex(activeIndex + 1);
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              setActiveIndex(activeIndex - 1);
+            } else if (event.key === 'Enter') {
+              event.preventDefault();
+              runCommand(visibleCommands[activeIndex]);
+            }
+          });
+
+          closeButton?.addEventListener('click', closePalette);
+
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !palette.hidden) {
+              event.preventDefault();
+              closePalette();
+              return;
+            }
+
+            if (event.repeat || isTypingTarget(event.target)) return;
+            const wantsCommand = (event.key.toLowerCase() === 'k' && (event.ctrlKey || event.metaKey)) || event.key === '/';
+            if (!wantsCommand) return;
+
+            event.preventDefault();
+            openPalette();
+          });
         })();
       </script>
       <slot />

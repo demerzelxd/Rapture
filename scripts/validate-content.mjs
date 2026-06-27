@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { Buffer } from 'node:buffer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,6 +16,18 @@ const blogFiles = collectMdx(blogDir);
 const photoFiles = collectMdx(photosDir);
 
 const seenPhotoSources = new Map();
+const placeholderPatterns = [
+  { pattern: /文章标题/i, label: 'template article title' },
+  { pattern: /照片标题/i, label: 'template photo title' },
+  { pattern: /一句用于(?:列表卡片|卡片)/i, label: 'template summary text' },
+  { pattern: /这里写/i, label: 'template body instruction' },
+  { pattern: /在这里写\s*Markdown/i, label: 'template markdown instruction' },
+  { pattern: /封面图片的无障碍描述/i, label: 'template cover alt text' },
+  { pattern: /images\.example\.com/i, label: 'example image host' },
+  { pattern: /A note from below the surface\./i, label: 'default draft description' },
+  { pattern: /A frame waiting for its pressure note\./i, label: 'default draft photo note' },
+  { pattern: /Write from the room behind the glass\./i, label: 'default draft body' },
+];
 
 validateUniqueSlugs(blogFiles, 'blog');
 validateUniqueSlugs(photoFiles, 'photos');
@@ -44,10 +57,6 @@ function validateBlog(filePath) {
     requireDate(filePath, data, 'updated');
   }
 
-  if (data.sourceKey !== undefined) {
-    requireSourceKey(filePath, data.sourceKey);
-  }
-
   if (data.tags === undefined) {
     addError(filePath, 'missing required field: tags');
   } else if (!Array.isArray(data.tags)) {
@@ -64,6 +73,8 @@ function validateBlog(filePath) {
   }
 
   validateMarkdownImageSources(filePath, entry.body);
+  validatePublishedCopy(filePath, entry);
+  validateDuplicateTitleHeading(filePath, entry);
 
   if (!entry.body.trim()) {
     addWarning(filePath, 'post body is empty');
@@ -92,13 +103,6 @@ async function validatePhoto(filePath) {
 
   validateImageSource(filePath, data.src, 'src');
 
-  if (data.thumb !== undefined) {
-    validateImageSource(filePath, data.thumb, 'thumb');
-    if (data.thumb === data.src) {
-      addWarning(filePath, 'thumb is the same as src; gallery lists will still load the original image');
-    }
-  }
-
   if (seenPhotoSources.has(data.src)) {
     addError(filePath, `duplicate photo src also used by ${seenPhotoSources.get(data.src)}`);
   } else {
@@ -124,9 +128,7 @@ async function validatePhoto(filePath) {
     );
   }
 
-  if (typeof data.thumb === 'string') {
-    await resolveImageSize(data.thumb, filePath);
-  }
+  validatePublishedCopy(filePath, entry);
 }
 
 function readEntry(filePath) {
@@ -359,6 +361,62 @@ function validateMarkdownImageSources(filePath, body) {
   }
 }
 
+function validatePublishedCopy(filePath, entry) {
+  const draft = entry.data.draft === true;
+  const values = [
+    ...Object.entries(entry.data).flatMap(([field, value]) => textValues(field, value)),
+    ['body', entry.body],
+  ];
+
+  for (const [field, value] of values) {
+    for (const { pattern, label } of placeholderPatterns) {
+      if (!pattern.test(value)) continue;
+      const message = `${field} contains ${label}; replace it before publishing`;
+      if (draft) {
+        addWarning(filePath, message);
+      } else {
+        addError(filePath, message);
+      }
+    }
+  }
+}
+
+function validateDuplicateTitleHeading(filePath, entry) {
+  const title = typeof entry.data.title === 'string' ? normalizeHeadingText(entry.data.title) : '';
+  if (!title) return;
+
+  const match = entry.body.match(/^\s*#\s+(.+)$/m);
+  if (!match) return;
+
+  const heading = normalizeHeadingText(match[1]);
+  if (heading !== title) return;
+
+  const message = 'body starts with an H1 that duplicates frontmatter title; remove it because the page already renders the title';
+  if (entry.data.draft === true) {
+    addWarning(filePath, message);
+  } else {
+    addError(filePath, message);
+  }
+}
+
+function textValues(field, value) {
+  if (typeof value === 'string') return [[field, value]];
+  if (Array.isArray(value)) {
+    return value
+      .map((item, index) => (typeof item === 'string' ? [`${field}[${index}]`, item] : undefined))
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeHeadingText(value) {
+  return value
+    .replace(/[`*_~[\]()#]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 function warnIfHttpImageSource(filePath, url, field) {
   if (url.protocol === 'http:') {
     addWarning(filePath, `${field} uses http://; HTTPS deployments usually block it as mixed content: ${url.href}`);
@@ -477,12 +535,6 @@ function requireDate(filePath, data, field) {
 function requirePositiveInteger(filePath, data, field) {
   if (!Number.isInteger(data[field]) || data[field] <= 0) {
     addError(filePath, `missing or invalid positive integer field: ${field}`);
-  }
-}
-
-function requireSourceKey(filePath, value) {
-  if (typeof value !== 'string' || !/^sha256:[a-f0-9]{16}$/.test(value)) {
-    addError(filePath, 'sourceKey must use the Obsidian importer hash format: sha256:<16 lowercase hex chars>');
   }
 }
 

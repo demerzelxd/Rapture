@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
-import { photoAmbientSrc, photoThumbSrc } from '../../lib/photoImages';
 
 const photos = (await getCollection('photos'))
   .filter((photo) => !photo.data.draft)
@@ -25,7 +24,7 @@ const locations = [...locationCounts.entries()].sort(([a], [b]) => a.localeCompa
       <div class="filter-topline">
         <label class="filter-field">
           <span>Search light</span>
-          <input data-filter-input type="search" placeholder="Title, city, tone..." autocomplete="off" />
+          <input id="gallery-search" name="gallery-search" data-filter-input type="search" placeholder="Title, city, tone..." autocomplete="off" />
         </label>
         <output class="filter-count" data-filter-count>{photos.length} / {photos.length}</output>
       </div>
@@ -43,13 +42,13 @@ const locations = [...locationCounts.entries()].sort(([a], [b]) => a.localeCompa
         <a
           class="photo-card card"
           href={`/gallery/${photo.id}/`}
-          style={`--photo-ratio: ${photo.data.width} / ${photo.data.height}; --photo-ambient-image: url("${photoAmbientSrc(photo)}")`}
+          style={`--photo-ratio: ${photo.data.width} / ${photo.data.height}; --photo-ambient-image: url("${photo.data.src}")`}
           data-filter-item
           data-filter-values={photo.data.location.toLowerCase()}
           data-filter-text={[photo.data.title, photo.data.location, photo.data.tone, photo.data.alt ?? ''].join(' ')}
         >
           <span class="photo-frame">
-            <img src={photoThumbSrc(photo)} alt={photo.data.alt ?? photo.data.title} loading={index < 2 ? 'eager' : 'lazy'} width={photo.data.width} height={photo.data.height} />
+            <img src={photo.data.src} alt={photo.data.alt ?? photo.data.title} loading={index < 2 ? 'eager' : 'lazy'} width={photo.data.width} height={photo.data.height} />
           </span>
           <div class="photo-meta">
             <span>{photo.data.location}</span>

@@ -16,7 +16,32 @@
     <a href="/blog/">Writing</a>
     <a href="/gallery/">Gallery</a>
   </div>
-  <a class="scroll-cue" href="#main-content">Enter the city</a>
+  <a class="scroll-cue" href="#main-content" data-enter-city>Enter the city</a>
+  <script is:inline>
+    (() => {
+      const trigger = document.querySelector('[data-enter-city]');
+      if (!(trigger instanceof HTMLAnchorElement)) return;
+
+      let settleTimer = 0;
+      trigger.addEventListener('click', (event) => {
+        const target = document.querySelector('#main-content');
+        if (!(target instanceof HTMLElement)) return;
+        event.preventDefault();
+        const top = window.scrollY + target.getBoundingClientRect().top + 1;
+        const finalTop = Math.max(0, top);
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.history.replaceState(null, '', '#main-content');
+        window.scrollTo({
+          top: finalTop,
+          behavior: reducedMotion ? 'instant' : 'smooth',
+        });
+        window.clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(() => {
+          window.scrollTo({ top: finalTop, behavior: 'instant' });
+        }, reducedMotion ? 0 : 760);
+      });
+    })();
+  </script>
 </section>
 
 <style>

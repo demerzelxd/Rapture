@@ -1,6 +1,5 @@
 import { getCollection } from 'astro:content';
 import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME } from '../lib/site';
-import { photoThumbSrc } from '../lib/photoImages';
 
 function isoDate(date: Date) {
   return date.toISOString();
@@ -43,12 +42,11 @@ export async function GET() {
       content_text: (photo.body ?? '').trim() || `${photo.data.title}, ${photo.data.location}. ${photo.data.tone}.`,
       date_published: isoDate(photo.data.date),
       date_modified: isoDate(photo.data.date),
-      image: absoluteUrl(photoThumbSrc(photo)),
+      image: absoluteUrl(photo.data.src),
       _rapture: {
         type: 'gallery',
         slug: photo.id,
         image: absoluteUrl(photo.data.src),
-        thumbnail: absoluteUrl(photoThumbSrc(photo)),
         location: photo.data.location,
         tone: photo.data.tone,
         width: photo.data.width,

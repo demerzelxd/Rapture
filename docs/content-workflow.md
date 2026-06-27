@@ -14,10 +14,12 @@ Rapture 是一个静态 Astro 站点。新的文章和相册条目通过新增 M
 - `/feed.json`：JSON Feed 时间线，包含已发布的写作和相册更新。
 - `/opensearch.xml`：让浏览器发现公开搜索页。
 - `/rss.xml`：公开写作 RSS。
-- `/sitemap.xml`：首页、写作、相册、文章页和照片页。
+- `/sitemap.xml`：首页、写作、相册、归档、搜索、文章页和照片页。
 - `/robots.txt`：指向 sitemap，方便爬虫发现站点结构。
 
 `/content.json` 包含规范绝对 URL，并且只包含已发布条目。`/feed.json` 使用同样的草稿过滤规则，`/rss.xml` 则保持为只包含写作内容。`/opensearch.xml` 指向 `/search/?q={searchTerms}`，不需要服务器支持。
+
+`/archive/` 是公开系统索引：它会读取同一批内容集合，汇总文章、照片、标签、地点、媒体来源和最近更新，并用滚动点亮的深海电缆串起所有公开信号。全站命令面板会在用户按下 `Ctrl+K` / `Cmd+K` 或 `/` 时懒加载 `/content.json`，因此不会影响首页油墨首屏加载。
 
 ## 推荐工作流
 
@@ -25,23 +27,9 @@ Rapture 是一个静态 Astro 站点。新的文章和相册条目通过新增 M
 
 完整模板和图片托管建议见 [obsidian-workbench.md](obsidian-workbench.md)。
 
-`/studio/` 是早期隐藏的浏览器 frontmatter 生成器，当前没有公开导航入口，也不进入 sitemap。Obsidian + FNS 跑顺后可以删除它；在删除前，它只作为历史备用工具，不再作为推荐路径。
+早期隐藏的浏览器 frontmatter 生成器和本地辅助发布脚本已删除；当前只保留 Obsidian + FNS + 手写 frontmatter 这一条主线，避免维护多套发布入口。
 
 ## 写作
-
-日常草稿也可以使用本地 helper：
-
-```bash
-npm run new:post -- -- --title "文章标题" --description "一句用于卡片和元数据的摘要。" --tags "note,frontend"
-```
-
-这样创建的文章默认是草稿。准备公开时加上 `--publish`：
-
-```bash
-npm run new:post -- -- --title "文章标题" --description "一句摘要。" --tags "note,frontend" --publish
-```
-
-命令会在 `src/content/blog/` 下写入一个带必需 frontmatter 的 `.mdx` 文件。之后可以直接在编辑器里正常写 Markdown。
 
 手动格式如下：
 
@@ -74,55 +62,6 @@ console.log('支持代码块');
 
 ## 相册
 
-新增照片条目可以使用本地 helper：
-
-```bash
-npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
-```
-
-对于 `public/` 下的本地 PNG 和 JPG 文件，helper 会自动读取 `width` 和 `height`。远程 URL 需要显式传入尺寸：
-
-```bash
-npm run new:photo -- -- --title "照片标题" --src "https://example.com/full/photo.jpg" --thumb "https://example.com/thumb/photo.webp" --width 1400 --height 933 --location Shanghai --tone "quiet blue"
-```
-
-如果远程 URL 来自 R2，推荐使用 `new:r2-photo`。这个命令只需要原图 URL，会下载原图读取尺寸，生成 WebP 缩略图，上传到 R2 的 `thumb/` 路径，并创建 Gallery 草稿：
-
-```bash
-npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --location Shanghai --tone "quiet blue"
-```
-
-如果 PicList 已经创建了相册条目，后面才想补缩略图，使用：
-
-```bash
-npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --update-existing
-```
-
-`src` 永远表示原图或高清图，供照片详情页和 FULL FRAME 查看使用。`thumb` 是可选缩略图，首页、Gallery 列表、搜索结果、feed 和 `/content.json` 会优先使用它；没填 `thumb` 时会自动回退到 `src`。建议 R2 路径固定成两类：
-
-```text
-https://img.getschwifty.me/rapture/gallery/full/photo.webp
-https://img.getschwifty.me/rapture/gallery/thumb/photo.webp
-```
-
-`new:r2-photo` 默认生成长边 1100px、质量 78 的 WebP 缩略图。你也可以用 `--thumb-size 900` 或 `--thumb-quality 82` 临时覆盖。这样页面布局仍使用原图的 `width` / `height` 锁定比例，但列表不会下载大图。
-
-如果你已经手工准备好了原图 URL 和缩略图 URL，仍然可以使用旧的通用命令：
-
-```bash
-npm run new:remote-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --thumb "https://file.getschwifty.me/rapture/gallery/thumb/photo.webp" --location Shanghai --tone "quiet blue"
-```
-
-helper 创建的照片条目默认是草稿。只有加上 `--publish`，这张照片才会进入公开相册。
-
-批量导入本地图片时，先把图片放到 `public/photos/`，再执行：
-
-```bash
-npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue"
-```
-
-批量导入器会扫描嵌套文件夹里的 PNG、JPG、JPEG 和 WebP 文件，自动读取尺寸，创建草稿照片条目，并跳过已经在 `src/content/photos/` 中存在同一公开 `src` 的图片。只有在整批照片都应立即公开时才加 `--publish`。
-
 手动格式如下：
 
 ```mdx
@@ -131,7 +70,6 @@ title: "照片标题"
 location: "Shanghai"
 date: 2026-06-20
 src: "https://example.com/photo.jpg"
-thumb: "https://example.com/photo-thumb.webp"
 width: 1400
 height: 933
 tone: "quiet blue"
@@ -157,29 +95,7 @@ draft: false
 Obsidian -> FNS -> GitHub -> Vercel -> Rapture
 ```
 
-文章同步到 `src/content/blog/`，Gallery 条目同步到 `src/content/photos/`。文章缺少 frontmatter 时，`npm run build` 会先执行 `npm run normalize:obsidian` 自动补齐；但直接同步进 `src/content/blog/` 的文章如果没有 `draft: true`，会按公开内容处理。
-
-如果仍然想从一个普通 vault 草稿箱手动导入文章，可以使用旧导入器：
-
-```bash
-npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay"
-```
-
-导入文章默认是草稿。需要立即发布时加 `--publish`：
-
-```bash
-npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay" --publish
-```
-
-导入器会保留笔记正文，从 frontmatter、第一个 `# Heading` 或文件名中推导标题，并补齐 Rapture 需要的 frontmatter。推送到 GitHub 后，Vercel 会重新构建并发布静态页面。
-
-如果想做成一个一键收件箱，可以把可发布笔记放在专门的 vault 文件夹里，然后导入整个文件夹：
-
-```bash
-npm run import:obsidian:folder -- -- --from "C:/path/to/vault/Rapture" --tags "note,essay"
-```
-
-文件夹导入器会扫描嵌套的 `.md` 和 `.mdx` 文件。它默认创建草稿文章，保留每篇笔记正文，并跳过已经通过上一次文件夹导入处理过的源文件。去重依赖 `sourceKey` frontmatter，它由源路径的短 SHA-256 hash 生成；本地 vault 路径本身不会写入文章。只有整批内容都应立即公开时才加 `--publish`。如果明确想把同一个源文件再次导入为新文章，可以加 `--force`。
+文章同步到 `src/content/blog/`，Gallery 条目同步到 `src/content/photos/`。同步进仓库的文件必须带完整 frontmatter；构建不会再自动补齐缺失字段。还没准备发布的内容请保留 `draft: true`。
 
 ## 校验
 
@@ -198,3 +114,5 @@ npm run validate:content:remote
 ```
 
 远程检查会拉取外部图片 URL，并把真实尺寸与 frontmatter 里的 `width` 和 `height` 对比。它能提前发现会导致卡片或详情页预留错误比例的问题。
+
+内容校验还会阻止已发布条目携带模板标题、示例图片域名、默认草稿文案或正文里重复 frontmatter 标题的一级标题。草稿里出现这些内容只会提示 warning，公开内容则会让构建失败。

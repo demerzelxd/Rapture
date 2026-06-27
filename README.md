@@ -2,19 +2,20 @@
 
 Rapture 是一个基于 Astro 的静态个人主页，用来承载写作和摄影。首页以 WebGL 油墨效果作为第一印象，内容层保持可维护：MDX 博文、静态相册、RSS、JSON Feed、OpenSearch、站点地图、`robots.txt`、公开内容索引，以及基于 Obsidian/FNS/Git 的低摩擦内容工作流。
 
+Archive 页面现在承担系统索引职责：文章和照片会挂在一条深海电缆上，滚动时信号逐段点亮。全站支持 `Ctrl+K` / `Cmd+K` 或 `/` 打开命令面板，用键盘快速跳转页面、文章、照片和隐藏命令。
+
 ## 技术栈
 
 - Astro 静态输出
 - MDX Content Collections
 - 不依赖数据库或自建服务器
 - 适合部署到 Vercel 免费额度
-- 本地内容工具：创建博文、创建照片条目、导入 Obsidian、批量导入照片
-- 远程 Gallery 照片草稿生成：自动读取远程图片尺寸
 - Obsidian + fast-note-sync-service 内容工作台
 - Web App Manifest 和移动端主屏元数据
 - 写作与相册共用的 JSON Feed
 - OpenSearch，让浏览器可以发现站内搜索
 - 公开的 JSON 内容索引，方便个人脚本或自动化读取
+- 深海电缆式 Archive 和全站命令面板
 
 ## 本地开发
 
@@ -98,51 +99,7 @@ npm run preview
 - `src/content/photos/`：相册条目
 - `public/photos/`：本地图片文件
 
-创建一篇草稿：
-
-```bash
-npm run new:post -- -- --title "文章标题" --description "一句用于卡片和元数据的摘要。" --tags "note,essay"
-```
-
-创建一个照片条目：
-
-```bash
-npm run new:photo -- -- --title "照片标题" --src /photos/photo.jpg --thumb /photos/thumbs/photo.webp --location Shanghai --tone "quiet blue" --alt "描述这张照片。"
-```
-
-从 R2 原图 URL 创建 Gallery 草稿，并自动生成/上传缩略图：
-
-```bash
-npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --location Shanghai --tone "quiet blue"
-```
-
-如果这张原图已经有相册条目，只想补缩略图：
-
-```bash
-npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/photo.webp" --update-existing
-```
-
-相册字段约定：`src` 是详情页和 FULL FRAME 使用的原图或高清图，`thumb` 是首页、相册列表、搜索和 feed 使用的轻量图。`thumb` 可选；没填时会自动回退到 `src`。如果你已经手工准备好了 `thumb` URL，也仍然可以使用 `new:remote-photo --thumb`。
-
-导入一篇 Obsidian 笔记：
-
-```bash
-npm run import:obsidian -- -- --from "C:/path/to/vault/My Note.md" --tags "note,essay"
-```
-
-导入一个 Obsidian 文件夹：
-
-```bash
-npm run import:obsidian:folder -- -- --from "C:/path/to/vault/Rapture" --tags "note,essay"
-```
-
-批量导入本地照片：
-
-```bash
-npm run import:photos -- -- --from public/photos --location Shanghai --tone "quiet blue"
-```
-
-这些命令默认生成草稿。只有加上 `--publish`，条目才会公开出现在路由、列表、feed 和 sitemap 里。
+内容不再依赖本地生成命令。文章和照片条目直接由 Obsidian/FNS 或编辑器写入 `src/content/blog/`、`src/content/photos/`，然后由 Astro Content Collections 校验 frontmatter。
 
 完整内容流程见 [docs/content-workflow.md](docs/content-workflow.md)。如果你想把 Obsidian 作为博客、文章图片和 Gallery 摄影的统一工作台，直接看 [docs/obsidian-workbench.md](docs/obsidian-workbench.md)。
 

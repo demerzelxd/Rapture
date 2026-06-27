@@ -16,7 +16,7 @@ const postYears = groupByYear(posts);
 const photoYears = groupByYear(photos);
 const tagCounts = countValues(posts.flatMap((post) => post.data.tags));
 const locationCounts = countValues(photos.map((photo) => photo.data.location));
-const latestPost = posts[0]?.data.date;
+const latestPost = posts[0]?.data.updated ?? posts[0]?.data.date;
 const latestPhoto = photos[0]?.data.date;
 
 function groupByYear<T extends { data: { date: Date } }>(items: T[]) {

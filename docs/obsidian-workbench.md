@@ -12,7 +12,7 @@ Obsidian
   -> 静态页面、content.json、feed、sitemap
 ```
 
-文章可以直接同步到 `src/content/blog/`。Rapture 的构建流程会在 `npm run build` 前自动执行 `npm run normalize:obsidian`，所以缺少部分 frontmatter 的 `.md` 文章也能被补齐并通过构建。
+文章可以直接同步到 `src/content/blog/`。同步进仓库的文件必须带完整 frontmatter；构建不会再自动补齐缺失字段。
 
 需要注意：直接同步进 `src/content/blog/` 的文章如果没有写 `draft: true`，规范化后会按公开文章处理。还没准备发布的笔记不要直接同步到这个目录，或者在模板里显式保留 `draft: true`。
 
@@ -32,9 +32,7 @@ coverAlt: "封面图片的无障碍描述。"
 draft: true
 ---
 
-# 文章标题
-
-第一段最好可以单独成立。缺少 `description` 时，系统会尝试用第一段补齐，但正式发布前建议手写。
+第一段最好可以单独成立。`description` 必须手写，构建不会再从正文里自动补齐缺失字段。
 
 ## 章节标题
 
@@ -55,7 +53,7 @@ const city = 'Rapture';
 - `updated` 可选，用来标记大改时间。
 - `cover` 和 `coverAlt` 可选；如果写了 `cover`，建议一定写 `coverAlt`。
 - `draft: true` 不进入公开路由、列表、feed、sitemap 和 `/content.json`。
-- `sourceKey` 不建议手写。它是旧的 Obsidian 导入器用于去重的内部 hash，格式必须是 `sha256:<16 位小写十六进制>`；FNS 直接同步目录时不需要这个字段。
+- 正文不要再写一个和 `title` 相同的一级标题。文章页已经会把 frontmatter 的 `title` 渲染成页面 H1，正文建议从第一段或 `##` 开始。
 
 发布时，把 `draft` 改成 `false` 或删除 `draft` 后让系统默认公开，再让 FNS 推送到 GitHub。Vercel 接到 Git push 后会重新构建。
 
@@ -93,7 +91,6 @@ title: "照片标题"
 location: "Shanghai"
 date: 2026-06-21
 src: "https://images.example.com/rapture/gallery/photo-title.webp"
-thumb: "https://images.example.com/rapture/gallery/photo-title-thumb.webp"
 width: 1600
 height: 1067
 tone: "brass light after rain"
@@ -101,13 +98,12 @@ alt: "雨后街角，一束黄铜色灯光落在玻璃上。"
 draft: true
 ---
 
-这里写一小段照片注释。可以很短，重点是让照片详情页不只是裸图。
+一小段照片注释。可以很短，重点是让照片详情页不只是裸图。
 ```
 
 字段说明：
 
 - `src` 可以是远程图片 URL，也可以是 `/photos/file.jpg` 这种本地 public 路径；Gallery 主流程推荐远程 URL。
-- `thumb` 可选，表示首页、Gallery 列表、搜索和 feed 使用的缩略图；没填时自动回退到 `src`。
 - `width` 和 `height` 必填，用来锁定图片比例，避免移动端和详情页布局抖动。
 - `tone` 是页面氛围字段，会显示在照片信息里，也适合写颜色、光线、天气或情绪。
 - `alt` 可选但强烈建议写；公开页面会校验图片是否有可访问性文本。
@@ -119,24 +115,9 @@ draft: true
 
 1. 在 Obsidian 中建一个 `Rapture/Gallery` 文件夹。
 2. 用 PicList 上传原图或压缩后的 WebP/JPEG 到 R2。
-3. 复制 PicList 返回的原图 URL。
-4. 用 `new:r2-photo` 生成 Gallery 草稿；脚本会自动读取原图尺寸、生成 WebP 缩略图、上传到 R2，并写入 `src`、`thumb`、`width`、`height`。
-5. 通过 FNS 同步到 `src/content/photos/`。
-6. 发布前运行 `npm run validate:content`；如果是远程图床，发布大量照片前再运行 `npm run validate:content:remote`。
-
-命令示例：
-
-```bash
-npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/night-platform.webp" --location Shanghai --tone "brass light after rain"
-```
-
-如果条目已经存在，只想补 `thumb`：
-
-```bash
-npm run new:r2-photo -- -- --src "https://file.getschwifty.me/rapture/gallery/full/night-platform.webp" --update-existing
-```
-
-这个命令会下载远程图片读取尺寸，创建 `src/content/photos/*.mdx` 草稿，并默认写入 `draft: true`。如果 PicList 的上传后脚本支持把上传结果 URL 传给 shell 命令，就把结果 URL 填到上面的 `--src`。准备公开时，把生成文件里的 `draft` 改成 `false`。
+3. 复制 PicList 返回的图片 URL，并在 Obsidian 中维护 Gallery frontmatter。
+4. 通过 FNS 同步到 `src/content/photos/`。
+5. 发布前运行 `npm run validate:content`；如果是远程图床，发布大量照片前再运行 `npm run validate:content:remote`。
 
 ## 免费图床建议
 
@@ -186,16 +167,13 @@ NAS 图床的硬性要求：
 
 我的建议：如果你已经有 NAS、域名和 Cloudflare，可以用 NAS 做 Gallery 原图源；否则先用 ImageKit 跑通工作流更省心。NAS 更适合“我愿意维护自己的图片源”，不是更省事。
 
-## `/studio/` 是否还需要
+## `/studio/` 已删除
 
-按现在的工作流，`/studio/` 已经不是主路径。它没有出现在公开导航里，也不会进入 sitemap，并且页面本身是 `noindex`。如果 Obsidian + FNS 工作流稳定，可以删除 `src/pages/studio.astro`，再清理 README 和部署文档中残留的 Studio 说明。
-
-建议先把它视为历史备用工具：不再使用、不再扩展。等你确认 Obsidian 模板和图片上传链路跑顺后，再删除页面，避免在内容工作流还没完全稳定时少一个临时生成 frontmatter 的兜底入口。
+早期隐藏的浏览器 frontmatter 生成器已经删除。现在只维护一条主线：Obsidian 负责写作和相册条目，FNS 负责同步，Vercel 负责静态构建。这样不会再出现网页端生成器、导入脚本和 Obsidian 模板多套规则互相漂移的问题。
 
 ## 后续优化空间
 
 - 为 Obsidian 建两个模板：文章模板和 Gallery 照片模板，默认 `draft: true`。
-- 把 `new:remote-photo` 接到 PicList 上传后脚本，让上传后自动生成 `src/content/photos/*.mdx` 草稿。
 - 约定图床路径，例如 `rapture/posts/YYYY/` 和 `rapture/gallery/YYYY/`，避免几年后图片目录失控。
 - 在发布前对 Gallery 远程图片运行 `npm run validate:content:remote`，但不要放进默认 CI，避免外部图床短暂故障影响每次提交。
 - 如果未来要在页面里展示 EXIF、相机、镜头、胶片模拟等信息，需要扩展 `src/content.config.ts` 的 photos schema。

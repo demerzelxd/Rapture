@@ -106,9 +106,6 @@ function validateContentIndex(content) {
   for (const photo of gallery) {
     const label = `content.json:gallery:${photo?.slug ?? 'unknown'}`;
     requireAbsoluteUrl(label, photo?.image, 'image');
-    if (photo?.thumbnail !== undefined) {
-      requireAbsoluteUrl(label, photo.thumbnail, 'thumbnail');
-    }
     requirePositiveNumber(label, photo, 'width');
     requirePositiveNumber(label, photo, 'height');
     const expectedRatio = Number((photo.width / photo.height).toFixed(4));
@@ -308,11 +305,19 @@ function validatePublicCopy() {
     'for testing chapters',
     'placeholder content',
     'rented template',
+    '文章标题',
+    '照片标题',
+    '一句用于列表卡片',
+    '一句用于卡片',
+    '这里写',
+    '封面图片的无障碍描述',
+    'images.example.com',
+    'a note from below the surface',
+    'a frame waiting for its pressure note',
   ];
 
   const publicHtmlFiles = collectFiles(distDir)
-    .filter((filePath) => filePath.endsWith('.html'))
-    .filter((filePath) => !relativeToDist(filePath).startsWith('studio/'));
+    .filter((filePath) => filePath.endsWith('.html'));
 
   for (const filePath of publicHtmlFiles) {
     const text = readFileSync(filePath, 'utf8').toLowerCase();
